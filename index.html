@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetChat Secure v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  /* ══════════ THEMES ══════════ */
+  :root {
+    --bg: #080a0d;
+    --surface: #0f1217;
+    --surface2: #141820;
+    --border: #1c2130;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.10);
+    --accent-glow: rgba(0,229,160,0.25);
+    --text: #dde4f0;
+    --muted: #3d4a60;
+    --muted2: #5a6a85;
+    --danger: #ff4d6d;
+    --warn: #f6ad55;
+    --my-bg: #0b2a1e;
+    --my-border: rgba(0,229,160,0.18);
+    --their-bg: #111825;
+    --their-border: #1c2130;
+    --shadow: rgba(0,0,0,0.4);
+    --emoji-bg: #0f1217;
+    --emoji-hover: #1c2130;
+  }
+
+  [data-theme="light"] {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #f7f9fc;
+    --border: #dde3ed;
+    --accent: #00a572;
+    --accent-dim: rgba(0,165,114,0.10);
+    --accent-glow: rgba(0,165,114,0.25);
+    --text: #1a2030;
+    --muted: #b0bcd0;
+    --muted2: #7a8ca5;
+    --danger: #e03050;
+    --warn: #d97706;
+    --my-bg: #d4f5e8;
+    --my-border: rgba(0,165,114,0.30);
+    --their-bg: #f0f4f8;
+    --their-border: #dde3ed;
+    --shadow: rgba(0,0,0,0.12);
+    --emoji-bg: #ffffff;
+    --emoji-hover: #f0f4f8;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(0,229,160,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(0,180,255,0.03) 0%, transparent 60%);
+    pointer-events:none; z-index:0;
+    transition: opacity 0.3s;
+  }
+
+  [data-theme="light"] body::before { opacity: 0.4; }
+
+  header {
+    position:relative; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 20px;
+    border-bottom:1px solid var(--border);
+    background: var(--surface);
+    backdrop-filter:blur(12px);
+    flex-shrink:0;
+    transition: background 0.3s, border-color 0.3s;
+    box-shadow: 0 1px 8px var(--shadow);
+  }
+
+  .logo {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px; font-weight:600;
+    letter-spacing:0.18em; color:var(--accent);
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  /* Theme toggle */
+  .theme-toggle {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+    padding: 4px 8px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+    transition: all 0.2s; color: var(--muted2);
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .theme-toggle span { font-size: 14px; }
+
+  .lock-badge {
+    display:flex; align-items:center; gap:5px;
+    background:var(--accent-dim);
+    border:1px solid rgba(0,229,160,0.2);
+    border-radius:20px; padding:3px 10px;
+    font-size:10px; letter-spacing:0.12em; color:var(--accent);
+  }
+
+  .status-pill {
+    display:flex; align-items:center; gap:7px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:0.1em;
+    color:var(--muted2); text-transform:uppercase;
+  }
+
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
+  .dot.online     { background:var(--accent); box-shadow:0 0 7px var(--accent-glow); animation:pulse 2s infinite; }
+  .dot.connecting { background:var(--warn); animation:blink 0.7s infinite; }
+  .dot.error      { background:var(--danger); }
+  .dot.ready      { background:var(--accent); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; z-index:1; }
+
+  /* ══════════════════════════════
+     GATE SCREEN (mot de passe d'accès)
+  ══════════════════════════════ */
+  #gate-screen {
+    position: fixed; inset: 0; z-index: 999;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    transition: opacity 0.4s ease;
+  }
+  #gate-screen.hidden {
+    opacity: 0; pointer-events: none;
+  }
+
+  .gate-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 36px 34px;
+    width: 100%; max-width: 360px;
+    position: relative;
+    box-shadow: 0 8px 40px var(--shadow);
+    text-align: center;
+  }
+  .gate-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    border-radius:16px 16px 0 0;
+    background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .gate-icon {
+    font-size: 36px; margin-bottom: 16px;
+    display: block;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+
+  .gate-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px; font-weight: 600;
+    letter-spacing: 0.2em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .gate-sub {
+    font-size: 11px; color: var(--muted2);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.08em; margin-bottom: 28px;
+  }
+
+  .gate-input-wrap { position: relative; margin-bottom: 14px; }
+  .gate-input-wrap input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 44px 12px 14px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 15px;
+    color: var(--text); outline: none; letter-spacing: 0.25em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    text-align: center;
+  }
+  .gate-input-wrap input:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  .gate-eye {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--muted2); transition: color 0.2s; padding: 2px;
+  }
+  .gate-eye:hover { color: var(--accent); }
+
+  .gate-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: var(--accent); color: #080a0d;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .gate-btn:hover { box-shadow: 0 0 22px var(--accent-glow); transform: translateY(-1px); }
+  .gate-btn:active { transform: translateY(0); }
+
+  .gate-error {
+    display: none; margin-top: 12px;
+    font-size: 11px; color: var(--danger);
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 8px 12px;
+    background: rgba(255,77,109,0.08);
+    border: 1px solid rgba(255,77,109,0.2);
+    border-radius: 6px;
+    animation: shake 0.3s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+
+  .gate-attempts {
+    margin-top: 10px; font-size: 10px; color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* Quand la gate est fermée, bloquer tout scroll/interaction sur le reste */
+  body.gate-locked header,
+  body.gate-locked main {
+    filter: blur(8px);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ── CONNECT SCREEN ── */
+  #connect-screen {
+    flex:1; display:flex; align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+
+  .card {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:32px 32px 28px;
+    width:100%; max-width:420px;
+    position:relative;
+    transition: background 0.3s, border-color 0.3s;
+    box-shadow: 0 4px 24px var(--shadow);
+  }
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:14px 14px 0 0;
+    background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .card-section { margin-bottom:24px; }
+  .card-section:last-child { margin-bottom:0; }
+
+  .section-label {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--muted2);
+    margin-bottom:12px; display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .field { margin-bottom:10px; }
+
+  label.fl {
+    display:block; font-family:'IBM Plex Mono',monospace;
+    font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted2); margin-bottom:6px;
+  }
+
+  input[type="text"], input[type="password"] {
+    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px;
+    padding:10px 13px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text);
+    outline:none; transition:border-color 0.2s, box-shadow 0.2s, background 0.3s;
+  }
+  input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+
+  .secret-wrap { position:relative; }
+  .secret-wrap input { padding-right:42px; }
+  .toggle-eye {
+    position:absolute; right:11px; top:50%; transform:translateY(-50%);
+    background:none; border:none; cursor:pointer; color:var(--muted2); padding:2px; transition:color 0.2s;
+  }
+  .toggle-eye:hover { color:var(--accent); }
+
+  .code-box {
+    background:var(--bg); border:1px solid var(--accent); border-radius:7px;
+    padding:12px 14px; font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;
+    color:var(--accent); letter-spacing:0.35em; text-align:center;
+    box-shadow:0 0 14px var(--accent-dim); cursor:pointer; user-select:all;
+    transition:box-shadow 0.2s, background 0.2s; margin-bottom:6px;
+    min-height:54px; display:flex; align-items:center; justify-content:center;
+  }
+  .code-box:hover { box-shadow:0 0 22px var(--accent-glow); }
+
+  .code-hint { font-size:10px; color:var(--muted2); font-family:'IBM Plex Mono',monospace; text-align:center; }
+
+  .security-note {
+    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.15); border-radius:7px;
+    padding:10px 13px; font-size:11px; color:var(--muted2); line-height:1.6;
+    margin-bottom:14px; display:flex; gap:8px; align-items:flex-start;
+  }
+  .security-note svg { color:var(--accent); flex-shrink:0; margin-top:2px; }
+
+  .btn {
+    width:100%; padding:11px; border:none; border-radius:7px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em;
+    text-transform:uppercase; cursor:pointer; transition:all 0.2s; font-weight:600;
+  }
+  .btn-primary { background:var(--accent); color:#080a0d; }
+  .btn-primary:hover:not(:disabled) { box-shadow:0 0 22px var(--accent-glow); transform:translateY(-1px); }
+  .btn-primary:active { transform:translateY(0); }
+  .btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
+
+  .error-msg {
+    font-size:11px; color:var(--danger); font-family:'IBM Plex Mono',monospace;
+    margin-top:10px; display:none; padding:8px 12px;
+    background:rgba(255,77,109,0.08); border:1px solid rgba(255,77,109,0.2); border-radius:6px;
+  }
+
+  /* ── CHAT SCREEN ── */
+  #chat-screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
+
+  .chat-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; gap:10px;
+    transition: background 0.3s, border-color 0.3s;
+    box-shadow: 0 1px 8px var(--shadow);
+  }
+  .peer-info { display:flex; flex-direction:column; min-width:0; }
+  .peer-name-display { font-weight:600; font-size:13px; color:var(--accent); }
+  .session-meta { font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted2); letter-spacing:0.08em; margin-top:2px; }
+
+  .enc-badge {
+    display:flex; align-items:center; gap:5px; font-family:'IBM Plex Mono',monospace;
+    font-size:9px; letter-spacing:0.1em; color:var(--accent);
+    background:var(--accent-dim); border:1px solid rgba(0,229,160,0.15);
+    border-radius:20px; padding:3px 10px; white-space:nowrap; flex-shrink:0;
+  }
+
+  .btn-disc {
+    background:none; border:1px solid var(--border); border-radius:5px; padding:4px 10px;
+    font-family:'IBM Plex Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--muted2);
+    cursor:pointer; text-transform:uppercase; transition:all 0.2s; flex-shrink:0;
+  }
+  .btn-disc:hover { border-color:var(--danger); color:var(--danger); }
+
+  #messages {
+    flex:1; overflow-y:auto; padding:16px;
+    display:flex; flex-direction:column; gap:8px; scroll-behavior:smooth;
+  }
+  #messages::-webkit-scrollbar { width:3px; }
+  #messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .msg-wrap { display:flex; flex-direction:column; max-width:74%; animation:slideIn 0.18s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
+  .msg-wrap.mine   { align-self:flex-end; align-items:flex-end; }
+  .msg-wrap.theirs { align-self:flex-start; align-items:flex-start; }
+
+  .msg-bubble {
+    padding:9px 13px; border-radius:10px;
+    font-size:13px; line-height:1.55; word-break:break-word; white-space:pre-wrap;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .msg-wrap.mine   .msg-bubble { background:var(--my-bg); border:1px solid var(--my-border); border-bottom-right-radius:2px; }
+  .msg-wrap.theirs .msg-bubble { background:var(--their-bg); border:1px solid var(--their-border); border-bottom-left-radius:2px; }
+
+  .msg-meta {
+    font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--muted);
+    margin-top:4px; letter-spacing:0.05em; display:flex; align-items:center; gap:5px;
+  }
+
+  /* ── READ RECEIPTS ── */
+  .read-status {
+    display: inline-flex; align-items: center;
+    font-size: 10px; color: var(--muted);
+    transition: color 0.3s;
+  }
+  .read-status.sent    { color: var(--muted); }
+  .read-status.delivered { color: var(--muted2); }
+  .read-status.read    { color: var(--accent); }
+
+  /* ── FILE / IMAGE MESSAGES ── */
+  .msg-image {
+    max-width: 220px; max-height: 180px; border-radius: 8px;
+    object-fit: cover; cursor: pointer;
+    border: 1px solid var(--border);
+    transition: transform 0.15s;
+  }
+  .msg-image:hover { transform: scale(1.02); }
+
+  .msg-file {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 13px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    cursor: pointer; transition: border-color 0.2s;
+    text-decoration: none; color: var(--text);
+  }
+  .msg-file:hover { border-color: var(--accent); }
+  .msg-file .file-icon { font-size: 22px; }
+  .msg-file .file-info { display: flex; flex-direction: column; min-width: 0; }
+  .msg-file .file-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .msg-file .file-size { font-family:'IBM Plex Mono',monospace; font-size: 9px; color: var(--muted2); margin-top: 2px; }
+
+  /* Image lightbox */
+  #lightbox {
+    display: none; position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.88); align-items: center; justify-content: center;
+    cursor: zoom-out; backdrop-filter: blur(8px);
+  }
+  #lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+
+  .system-msg {
+    text-align:center; font-family:'IBM Plex Mono',monospace; font-size:10px;
+    color:var(--muted); letter-spacing:0.1em; padding:3px 0;
+    display:flex; align-items:center; gap:8px;
+  }
+  .system-msg::before,.system-msg::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .typing-wrap { align-self:flex-start; animation:slideIn 0.18s ease; }
+  .typing-indicator {
+    display:flex; align-items:center; gap:4px; padding:9px 13px;
+    background:var(--their-bg); border:1px solid var(--their-border);
+    border-radius:10px; border-bottom-left-radius:2px;
+  }
+  .td { width:5px; height:5px; border-radius:50%; background:var(--muted2); animation:tb 1.4s infinite; }
+  .td:nth-child(2){animation-delay:0.2s} .td:nth-child(3){animation-delay:0.4s}
+  @keyframes tb { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+  /* ── INPUT BAR ── */
+  .input-bar {
+    display:flex; flex-direction: column;
+    border-top:1px solid var(--border); background: var(--surface);
+    backdrop-filter:blur(10px); flex-shrink:0;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .input-row {
+    display: flex; gap: 9px; padding: 10px 14px;
+    align-items: flex-end;
+  }
+  .input-actions {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .action-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted2); padding: 6px; border-radius: 6px;
+    transition: all 0.2s; display: flex; align-items: center;
+    font-size: 16px;
+  }
+  .action-btn:hover { color: var(--accent); background: var(--accent-dim); }
+
+  #msg-input {
+    flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    padding:9px 13px; font-family:'IBM Plex Sans',sans-serif; font-size:13px; color:var(--text);
+    outline:none; resize:none; max-height:100px; line-height:1.5;
+    transition:border-color 0.2s, box-shadow 0.2s, background 0.3s;
+  }
+  #msg-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-dim); }
+
+  .send-btn {
+    background:var(--accent); border:none; border-radius:8px;
+    width:42px; height:42px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.2s; color:#080a0d; flex-shrink:0;
+  }
+  .send-btn:hover:not(:disabled) { box-shadow:0 0 18px var(--accent-glow); transform:scale(1.05); }
+  .send-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none !important; }
+
+  /* ── FILE PREVIEW STRIP ── */
+  #file-preview {
+    display: none; padding: 8px 14px 0;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .preview-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--accent);
+    border-radius: 6px; padding: 5px 10px;
+    font-size: 11px; color: var(--text); font-family: 'IBM Plex Mono', monospace;
+    max-width: 200px;
+  }
+  .preview-chip img { width: 28px; height: 28px; object-fit: cover; border-radius: 3px; }
+  .preview-chip .chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+  .preview-chip .chip-rm {
+    background: none; border: none; cursor: pointer; color: var(--muted2);
+    padding: 0; margin-left: 2px; font-size: 14px; line-height: 1;
+    transition: color 0.15s;
+  }
+  .preview-chip .chip-rm:hover { color: var(--danger); }
+
+  /* ── EMOJI PICKER ── */
+  #emoji-picker {
+    display: none; position: absolute; bottom: 70px; left: 14px; z-index: 50;
+    background: var(--emoji-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; width: 300px;
+    box-shadow: 0 8px 30px var(--shadow);
+    animation: popIn 0.15s ease;
+    transition: background 0.3s;
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(0.92) translateY(6px)} to{opacity:1;transform:none} }
+
+  .emoji-search {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 7px 10px; color: var(--text);
+    font-size: 12px; outline: none; margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .emoji-search:focus { border-color: var(--accent); }
+
+  .emoji-categories {
+    display: flex; gap: 4px; margin-bottom: 8px; overflow-x: auto;
+  }
+  .emoji-categories::-webkit-scrollbar { display: none; }
+  .emoji-cat-btn {
+    background: none; border: none; cursor: pointer; font-size: 16px;
+    padding: 4px 6px; border-radius: 6px; transition: background 0.15s; flex-shrink: 0;
+  }
+  .emoji-cat-btn.active,
+  .emoji-cat-btn:hover { background: var(--emoji-hover); }
+
+  .emoji-grid {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+    max-height: 180px; overflow-y: auto;
+  }
+  .emoji-grid::-webkit-scrollbar { width: 2px; }
+  .emoji-grid::-webkit-scrollbar-thumb { background: var(--border); }
+  .emoji-btn {
+    background: none; border: none; cursor: pointer; font-size: 20px;
+    padding: 4px; border-radius: 6px; transition: background 0.12s;
+    line-height: 1;
+  }
+  .emoji-btn:hover { background: var(--emoji-hover); }
+
+  /* ── LOADING ── */
+  #loading {
+    display:none; position:fixed; inset:0;
+    background:rgba(8,10,13,0.88); z-index:100;
+    align-items:center; justify-content:center; flex-direction:column; gap:14px;
+    backdrop-filter:blur(6px);
+  }
+  .spinner { width:32px; height:32px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.75s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .load-txt { font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.16em; color:var(--muted2); text-transform:uppercase; }
+
+  /* hidden file input */
+  #file-input { display: none; }
+</style>
+</head>
+<body class="gate-locked">
+
+<!-- GATE SCREEN -->
+<div id="gate-screen">
+  <div class="gate-card">
+    <span class="gate-icon">🔐</span>
+    <div class="gate-title">NetChat Secure</div>
+    <div class="gate-sub">Entrez le mot de passe d'accès</div>
+
+    <div class="gate-input-wrap">
+      <input type="password" id="gate-input" placeholder="••••••••" autocomplete="off" autofocus />
+      <button class="gate-eye" id="gate-eye" type="button">
+        <svg id="gate-eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+
+    <button class="gate-btn" id="gate-btn">▶ Accéder</button>
+    <div class="gate-error" id="gate-error">Mot de passe incorrect</div>
+    <div class="gate-attempts" id="gate-attempts"></div>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="load-txt" id="load-txt">Initialisation...</div>
+</div>
+
+<!-- IMAGE LIGHTBOX -->
+<div id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<header>
+  <div class="logo">
+    NetChat
+    <div class="lock-badge">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      AES-256
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="theme-toggle" id="theme-toggle" title="Changer le thème">
+      <span id="theme-icon">☀️</span>
+    </button>
+    <div class="status-pill">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Init...</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- CONNECT SCREEN -->
+  <div id="connect-screen">
+    <div class="card">
+
+      <div class="card-section">
+        <div class="section-label">Identité</div>
+        <div class="field">
+          <label class="fl">Votre nom</label>
+          <input type="text" id="my-name" placeholder="ex: Alice" maxlength="20" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="card-section">
+        <div class="section-label">Votre code de connexion</div>
+        <div class="code-box" id="my-code-box" title="Cliquer pour copier">
+          <span id="code-text">• • •</span>
+        </div>
+        <div class="code-hint">↑ Donnez ce code à votre pair · Cliquer pour copier</div>
+      </div>
+
+      <div class="card-section">
+        <div class="section-label">Rejoindre un pair</div>
+
+        <div class="field">
+          <label class="fl">Code du pair</label>
+          <input type="text" id="peer-code-input" placeholder="ex: K7XP2M" maxlength="10"
+            style="text-transform:uppercase;letter-spacing:0.2em" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label class="fl">🔑 Clé secrète partagée</label>
+          <div class="secret-wrap">
+            <input type="password" id="secret-key" placeholder="Mot de passe identique des deux côtés" autocomplete="off" />
+            <button class="toggle-eye" id="toggle-eye" type="button">
+              <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="security-note">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>La clé secrète ne quitte jamais votre machine. Tous les messages sont chiffrés <strong style="color:var(--accent)">AES-256</strong> avant envoi. Même PeerJS ne peut pas lire vos échanges.</span>
+        </div>
+
+        <button class="btn btn-primary" id="connect-btn" disabled>▶ Se connecter</button>
+        <div class="error-msg" id="error-msg"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen">
+    <div class="chat-bar">
+      <div class="peer-info">
+        <div class="peer-name-display" id="peer-display">—</div>
+        <div class="session-meta">Session : <span id="sess-code">—</span></div>
+      </div>
+      <div class="enc-badge">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Chiffré E2E
+      </div>
+      <button class="btn-disc" id="disconnect-btn">✕ Quitter</button>
+    </div>
+
+    <div id="messages"></div>
+
+    <!-- EMOJI PICKER (inside main for positioning) -->
+    <div id="emoji-picker">
+      <input class="emoji-search" id="emoji-search" placeholder="🔍 Rechercher..." autocomplete="off">
+      <div class="emoji-categories" id="emoji-cats"></div>
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+
+    <div class="input-bar">
+      <!-- File preview strip -->
+      <div id="file-preview"></div>
+      <div class="input-row">
+        <div class="input-actions">
+          <!-- Emoji button -->
+          <button class="action-btn" id="emoji-btn" title="Emoji">😊</button>
+          <!-- File button -->
+          <button class="action-btn" id="file-btn" title="Fichier / Image">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+        </div>
+        <textarea id="msg-input" placeholder="Message chiffré… (Entrée pour envoyer)" rows="1"></textarea>
+        <button class="send-btn" id="send-btn" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<input type="file" id="file-input" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
+
+<script>
+// ══════════════════════════════
+// EMOJI DATA
+// ══════════════════════════════
+var EMOJI_CATS = [
+  { icon:'😀', label:'Smileys', emojis:['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','😷','🤒','🤕','🤢','🤮','🤧','😇','🥳','🥺','🤠','🤡','🥸','😈','👿'] },
+  { icon:'👋', label:'Gestes', emojis:['👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍','💅','🤳','💪','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁','👅','👄','🫦'] },
+  { icon:'❤️', label:'Coeurs', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮','✝','☪','🕉','☯','✡','🔯','🕎','☦','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'] },
+  { icon:'🐶', label:'Animaux', emojis:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🪳','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🦭','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐈','🪶','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊','🐇','🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿','🦔'] },
+  { icon:'🍎', label:'Nourriture', emojis:['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶','🫑','🧄','🧅','🥔','🌽','🥕','🫒','🧆','🥜','🍞','🥐','🥖','🫓','🥨','🥯','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫔','🌮','🌯','🥙','🧆','🥗','🥘','🫕','🍲','🫙','🍜','🍝','🍠','🍢','🍣','🍤','🍙','🍚','🍛','🍥','🥮','🍡','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','🍵','☕','🫖','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉','🍾'] },
+  { icon:'⚽', label:'Sports', emojis:['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸','🥌','🎿','⛷','🏂','🪂','🏋','🤼','🤸','⛹','🤺','🤾','🏌','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎖','🏵','🎗','🎫','🎟','🎪','🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎵','🎶','🥁','🪘','🎷','🎺','🎸','🪕','🎻','🎲','♟','🎯','🎳','🎮','🎰','🧩'] },
+  { icon:'🚀', label:'Voyage', emojis:['🚗','🚕','🚙','🚌','🚎','🏎','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍','🛵','🛺','🚲','🛴','🛹','🛼','🚏','🛣','🛤','⛽','🚨','🚥','🚦','🛑','🚧','⚓','🛟','⛵','🛶','🚤','🛳','⛴','🛥','🚢','✈','🛩','🛫','🛬','🪂','💺','🚁','🚟','🚠','🚡','🛰','🚀','🛸','🪐','🌍','🌎','🌏','🗺','🌐','🗾','🧭','🏔','⛰','🌋','🗻','🏕','🏖','🏜','🏝','🏞','🏟','🏛','🏗','🧱','🏘','🏚','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🛕','🕍','⛩','🕋','⛲','⛺','🌁','🌃','🏙','🌄','🌅','🌆','🌇','🌉','♨','🎠','🎡','🎢','💈','🎪'] },
+  { icon:'💡', label:'Objets', emojis:['⌚','📱','📲','💻','⌨','🖥','🖨','🖱','🖲','🕹','🗜','💽','💾','💿','📀','📼','📷','📸','📹','🎥','📽','🎞','📞','☎','📟','📠','📺','📻','🧭','⏱','⏲','⏰','🕰','⌛','⏳','📡','🔋','🪫','🔌','💡','🔦','🕯','🪔','🧯','🛢','💸','💵','💴','💶','💷','🪙','💳','🪙','💰','💎','⚖','🪜','🧰','🪛','🔧','🔨','⚒','🛠','⛏','🪚','🔩','🪤','🧲','🪣','💣','🔫','🪓','🗡','⚔','🛡','🪃','🔮','💊','🩺','💉','🩹','🩻','🩼','🧬','🦠','🧫','🧪','🌡','🔭','🔬','🕳','🩸','🧸','🪆','🖼','🧵','🪡','🧶','🪢','👓','🕶','🥽','🌂','☂','🧵','🪡','🧶','🪢','👝','👛','👜','💼','🎒','🧳','👒','🎩','🪖','⛑','📿','💄','💍','💎','🔇','🔈','🔉','🔊','📢','📣','📯','🔔','🔕'] },
+];
+
+// ══════════════════════════════
+// STATE
+// ══════════════════════════════
+var peer      = null;
+var conn      = null;
+var myName    = '';
+var peerName  = '';
+var secretKey = '';
+var myCode    = '';
+var typingTimer   = null;
+var isTyping      = false;
+var typingEl      = null;
+var connTimeout   = null;
+var pendingFiles  = [];   // files waiting to be sent
+var msgIdCounter  = 0;
+var sentMsgMap    = {};   // msgId → DOM element (for read receipts)
+var isDark        = true;
+var emojiOpen     = false;
+var currentEmojiCat = 0;
+
+// ══════════════════════════════
+// DOM
+// ══════════════════════════════
+var myNameInput   = document.getElementById('my-name');
+var myCodeBox     = document.getElementById('my-code-box');
+var codeText      = document.getElementById('code-text');
+var peerCodeInput = document.getElementById('peer-code-input');
+var secretInput   = document.getElementById('secret-key');
+var connectBtn    = document.getElementById('connect-btn');
+var errorMsgEl    = document.getElementById('error-msg');
+var statusDot     = document.getElementById('status-dot');
+var statusTextEl  = document.getElementById('status-text');
+var connectScreen = document.getElementById('connect-screen');
+var chatScreen    = document.getElementById('chat-screen');
+var messagesEl    = document.getElementById('messages');
+var msgInput      = document.getElementById('msg-input');
+var sendBtn       = document.getElementById('send-btn');
+var peerDisplay   = document.getElementById('peer-display');
+var sessCode      = document.getElementById('sess-code');
+var disconnBtn    = document.getElementById('disconnect-btn');
+var loadOverlay   = document.getElementById('loading');
+var loadTxt       = document.getElementById('load-txt');
+var toggleEye     = document.getElementById('toggle-eye');
+var eyeIcon       = document.getElementById('eye-icon');
+var themeToggle   = document.getElementById('theme-toggle');
+var themeIcon     = document.getElementById('theme-icon');
+var emojiBtnEl    = document.getElementById('emoji-btn');
+var emojiPickerEl = document.getElementById('emoji-picker');
+var emojiGridEl   = document.getElementById('emoji-grid');
+var emojiCatsEl   = document.getElementById('emoji-cats');
+var emojiSearchEl = document.getElementById('emoji-search');
+var fileBtnEl     = document.getElementById('file-btn');
+var fileInput     = document.getElementById('file-input');
+var filePreviewEl = document.getElementById('file-preview');
+var lightbox      = document.getElementById('lightbox');
+var lightboxImg   = document.getElementById('lightbox-img');
+
+// ══════════════════════════════
+// THEME
+// ══════════════════════════════
+function applyTheme(dark) {
+  isDark = dark;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  themeIcon.textContent = dark ? '☀️' : '🌙';
+}
+// Load saved theme
+try {
+  var saved = localStorage.getItem('netchat-theme');
+  applyTheme(saved !== 'light');
+} catch(e) { applyTheme(true); }
+
+themeToggle.addEventListener('click', function() {
+  applyTheme(!isDark);
+  try { localStorage.setItem('netchat-theme', isDark ? 'dark' : 'light'); } catch(e){}
+});
+
+// ══════════════════════════════
+// EMOJI PICKER
+// ══════════════════════════════
+function buildEmojiCats() {
+  EMOJI_CATS.forEach(function(cat, i) {
+    var btn = document.createElement('button');
+    btn.className = 'emoji-cat-btn' + (i === 0 ? ' active' : '');
+    btn.textContent = cat.icon;
+    btn.title = cat.label;
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.emoji-cat-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentEmojiCat = i;
+      renderEmojiGrid(EMOJI_CATS[i].emojis);
+    });
+    emojiCatsEl.appendChild(btn);
+  });
+}
+
+function renderEmojiGrid(emojis) {
+  emojiGridEl.innerHTML = '';
+  emojis.forEach(function(e) {
+    var btn = document.createElement('button');
+    btn.className = 'emoji-btn';
+    btn.textContent = e;
+    btn.addEventListener('click', function() {
+      var pos = msgInput.selectionStart;
+      var val = msgInput.value;
+      msgInput.value = val.slice(0, pos) + e + val.slice(pos);
+      msgInput.selectionStart = msgInput.selectionEnd = pos + e.length;
+      msgInput.focus();
+    });
+    emojiGridEl.appendChild(btn);
+  });
+}
+
+buildEmojiCats();
+renderEmojiGrid(EMOJI_CATS[0].emojis);
+
+emojiSearchEl.addEventListener('input', function() {
+  var q = emojiSearchEl.value.trim().toLowerCase();
+  if (!q) { renderEmojiGrid(EMOJI_CATS[currentEmojiCat].emojis); return; }
+  var all = EMOJI_CATS.reduce(function(acc, cat) { return acc.concat(cat.emojis); }, []);
+  // Simple filter by searching emoji description — we just show all that match the query string in emoji char
+  renderEmojiGrid(all.filter(function(e) { return e.includes(q); }));
+});
+
+emojiBtnEl.addEventListener('click', function(e) {
+  e.stopPropagation();
+  emojiOpen = !emojiOpen;
+  emojiPickerEl.style.display = emojiOpen ? 'block' : 'none';
+  if (emojiOpen) emojiSearchEl.focus();
+});
+
+document.addEventListener('click', function(e) {
+  if (emojiOpen && !emojiPickerEl.contains(e.target) && e.target !== emojiBtnEl) {
+    emojiOpen = false;
+    emojiPickerEl.style.display = 'none';
+  }
+});
+
+// ══════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════
+fileBtnEl.addEventListener('click', function() { fileInput.click(); });
+
+fileInput.addEventListener('change', function() {
+  Array.from(fileInput.files).forEach(function(file) {
+    pendingFiles.push(file);
+    addFilePreview(file);
+  });
+  fileInput.value = '';
+  if (pendingFiles.length) filePreviewEl.style.display = 'flex';
+  sendBtn.disabled = false;
+});
+
+function addFilePreview(file) {
+  var chip = document.createElement('div');
+  chip.className = 'preview-chip';
+  var isImg = file.type.startsWith('image/');
+  if (isImg) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = document.createElement('img');
+      img.src = e.target.result;
+      chip.insertBefore(img, chip.firstChild);
+    };
+    reader.readAsDataURL(file);
+  } else {
+    var icon = document.createElement('span');
+    icon.textContent = fileEmoji(file);
+    chip.appendChild(icon);
+  }
+  var name = document.createElement('span');
+  name.className = 'chip-name';
+  name.textContent = file.name;
+  var rm = document.createElement('button');
+  rm.className = 'chip-rm';
+  rm.textContent = '×';
+  rm.addEventListener('click', function() {
+    var idx = pendingFiles.indexOf(file);
+    if (idx > -1) pendingFiles.splice(idx, 1);
+    chip.remove();
+    if (!pendingFiles.length) filePreviewEl.style.display = 'none';
+  });
+  chip.appendChild(name);
+  chip.appendChild(rm);
+  filePreviewEl.appendChild(chip);
+}
+
+function fileEmoji(file) {
+  if (file.type.startsWith('image/')) return '🖼️';
+  if (file.type.startsWith('video/')) return '🎬';
+  if (file.type.startsWith('audio/')) return '🎵';
+  if (file.type === 'application/pdf') return '📄';
+  if (file.type.includes('zip') || file.type.includes('rar')) return '📦';
+  return '📎';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' o';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' Ko';
+  return (bytes/1048576).toFixed(1) + ' Mo';
+}
+
+// ══════════════════════════════
+// UTILS
+// ══════════════════════════════
+function genCode() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = '';
+  for (var i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function setStatus(state, label) {
+  statusDot.className = 'dot' + (state ? ' ' + state : '');
+  statusTextEl.textContent = label;
+}
+
+function showError(msg) { errorMsgEl.textContent = msg; errorMsgEl.style.display = 'block'; }
+function hideError()    { errorMsgEl.style.display = 'none'; }
+function showLoading(msg) { loadTxt.textContent = msg; loadOverlay.style.display = 'flex'; }
+function hideLoading()    { loadOverlay.style.display = 'none'; }
+
+function scrollBot() {
+  requestAnimationFrame(function() { messagesEl.scrollTop = messagesEl.scrollHeight; });
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function nextMsgId() { return ++msgIdCounter; }
+
+// ══════════════════════════════
+// LIGHTBOX
+// ══════════════════════════════
+function openLightbox(src) {
+  lightboxImg.src = src;
+  lightbox.style.display = 'flex';
+}
+function closeLightbox() {
+  lightbox.style.display = 'none';
+  lightboxImg.src = '';
+}
+
+// ══════════════════════════════
+// CRYPTO
+// ══════════════════════════════
+function aesEncrypt(text, key) {
+  return CryptoJS.AES.encrypt(text, key).toString();
+}
+
+function aesDecrypt(cipher, key) {
+  try {
+    var bytes  = CryptoJS.AES.decrypt(cipher, key);
+    var result = bytes.toString(CryptoJS.enc.Utf8);
+    return result || null;
+  } catch(e) { return null; }
+}
+
+// ══════════════════════════════
+// MESSAGES UI
+// ══════════════════════════════
+function addMsg(text, time, mine, msgId) {
+  var w = document.createElement('div');
+  w.className = 'msg-wrap ' + (mine ? 'mine' : 'theirs');
+
+  var bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+
+  var meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerHTML = esc(mine ? 'Moi' : peerName) + ' · ' + esc(time);
+
+  if (mine && msgId) {
+    var readEl = document.createElement('span');
+    readEl.className = 'read-status sent';
+    readEl.id = 'rs-' + msgId;
+    readEl.title = 'Envoyé';
+    readEl.innerHTML = ' ✓';
+    meta.appendChild(readEl);
+    sentMsgMap[msgId] = readEl;
+  }
+
+  w.appendChild(bubble);
+  w.appendChild(meta);
+  messagesEl.appendChild(w);
+  scrollBot();
+
+  // Send read receipt after short delay when receiving
+  if (!mine && conn && conn.open) {
+    sendEnc({ type: 'read_receipt' });
+  }
+}
+
+function addImageMsg(src, time, mine, msgId, fileName) {
+  var w = document.createElement('div');
+  w.className = 'msg-wrap ' + (mine ? 'mine' : 'theirs');
+
+  var img = document.createElement('img');
+  img.className = 'msg-image';
+  img.src = src;
+  img.alt = fileName || 'image';
+  img.addEventListener('click', function() { openLightbox(src); });
+
+  var meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerHTML = esc(mine ? 'Moi' : peerName) + ' · ' + esc(time) + (fileName ? ' · ' + esc(fileName) : '');
+
+  if (mine && msgId) {
+    var readEl = document.createElement('span');
+    readEl.className = 'read-status sent';
+    readEl.id = 'rs-' + msgId;
+    readEl.title = 'Envoyé';
+    readEl.innerHTML = ' ✓';
+    meta.appendChild(readEl);
+    sentMsgMap[msgId] = readEl;
+  }
+
+  w.appendChild(img);
+  w.appendChild(meta);
+  messagesEl.appendChild(w);
+  scrollBot();
+
+  if (!mine && conn && conn.open) {
+    sendEnc({ type: 'read_receipt' });
+  }
+}
+
+function addFileMsg(dataUrl, fileName, fileSize, time, mine, msgId) {
+  var w = document.createElement('div');
+  w.className = 'msg-wrap ' + (mine ? 'mine' : 'theirs');
+
+  var a = document.createElement('a');
+  a.className = 'msg-file';
+  a.href = dataUrl;
+  a.download = fileName;
+
+  var iconEl = document.createElement('span');
+  iconEl.className = 'file-icon';
+  iconEl.textContent = '📎';
+
+  var info = document.createElement('div');
+  info.className = 'file-info';
+  var nameEl = document.createElement('span');
+  nameEl.className = 'file-name';
+  nameEl.textContent = fileName;
+  var sizeEl = document.createElement('span');
+  sizeEl.className = 'file-size';
+  sizeEl.textContent = formatSize(fileSize) + ' · Cliquer pour télécharger';
+
+  info.appendChild(nameEl);
+  info.appendChild(sizeEl);
+  a.appendChild(iconEl);
+  a.appendChild(info);
+
+  var meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerHTML = esc(mine ? 'Moi' : peerName) + ' · ' + esc(time);
+
+  if (mine && msgId) {
+    var readEl = document.createElement('span');
+    readEl.className = 'read-status sent';
+    readEl.id = 'rs-' + msgId;
+    readEl.title = 'Envoyé';
+    readEl.innerHTML = ' ✓';
+    meta.appendChild(readEl);
+    sentMsgMap[msgId] = readEl;
+  }
+
+  w.appendChild(a);
+  w.appendChild(meta);
+  messagesEl.appendChild(w);
+  scrollBot();
+
+  if (!mine && conn && conn.open) {
+    sendEnc({ type: 'read_receipt' });
+  }
+}
+
+function addSystemMsg(text) {
+  var el = document.createElement('div');
+  el.className = 'system-msg';
+  el.textContent = text;
+  messagesEl.appendChild(el);
+  scrollBot();
+}
+
+function showTypingEl() {
+  if (typingEl) return;
+  typingEl = document.createElement('div');
+  typingEl.className = 'typing-wrap';
+  typingEl.innerHTML = '<div class="typing-indicator"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
+  messagesEl.appendChild(typingEl);
+  scrollBot();
+}
+
+function removeTypingEl() {
+  if (typingEl) { typingEl.remove(); typingEl = null; }
+}
+
+// ══════════════════════════════
+// SEND (encrypted)
+// ══════════════════════════════
+function sendEnc(data) {
+  if (!conn || !conn.open) return;
+  conn.send({ enc: aesEncrypt(JSON.stringify(data), secretKey) });
+}
+
+// ══════════════════════════════
+// INCOMING DATA HANDLER
+// ══════════════════════════════
+function handleData(raw) {
+  if (!raw || !raw.enc) return;
+
+  var plain = aesDecrypt(raw.enc, secretKey);
+  if (!plain) {
+    addSystemMsg('⚠ Clé secrète incorrecte — message impossible à déchiffrer.');
+    return;
+  }
+
+  var data;
+  try { data = JSON.parse(plain); } catch(e) { return; }
+
+  if (data.type === 'handshake') {
+    peerName = data.name || 'Inconnu';
+    onConnected();
+  } else if (data.type === 'msg') {
+    removeTypingEl();
+    addMsg(data.text, data.time, false);
+  } else if (data.type === 'file') {
+    removeTypingEl();
+    if (data.isImage) {
+      addImageMsg(data.dataUrl, data.time, false, null, data.fileName);
+    } else {
+      addFileMsg(data.dataUrl, data.fileName, data.fileSize, data.time, false, null);
+    }
+  } else if (data.type === 'typing') {
+    showTypingEl();
+  } else if (data.type === 'stop_typing') {
+    removeTypingEl();
+  } else if (data.type === 'read_receipt') {
+    // Mark all unseen sent messages as read
+    Object.keys(sentMsgMap).forEach(function(id) {
+      var el = sentMsgMap[id];
+      if (el) {
+        el.className = 'read-status read';
+        el.innerHTML = ' ✓✓';
+        el.title = 'Lu';
+      }
+    });
+  } else if (data.type === 'bye') {
+    handleDisconnect(true);
+  }
+}
+
+// ══════════════════════════════
+// SETUP CONNECTION EVENTS
+// ══════════════════════════════
+function setupConn() {
+  conn.on('open', function() {
+    clearTimeout(connTimeout);
+    hideLoading();
+    sendEnc({ type: 'handshake', name: myName });
+  });
+
+  conn.on('data', handleData);
+
+  conn.on('close', function() { handleDisconnect(true); });
+  conn.on('error', function() { handleDisconnect(true); });
+}
+
+// ══════════════════════════════
+// ON CONNECTED → SHOW CHAT
+// ══════════════════════════════
+function onConnected() {
+  setStatus('online', 'Connecté');
+  connectScreen.style.display = 'none';
+  chatScreen.style.display    = 'flex';
+  peerDisplay.textContent     = peerName;
+  sessCode.textContent        = myCode;
+  sendBtn.disabled            = false;
+  msgInput.focus();
+  addSystemMsg('✓ AES-256 actif · Connecté avec ' + peerName);
+}
+
+// ══════════════════════════════
+// SEND MESSAGE
+// ══════════════════════════════
+function sendMsg() {
+  var text = msgInput.value.trim();
+  var hasFiles = pendingFiles.length > 0;
+  if (!text && !hasFiles) return;
+  if (!conn || !conn.open) return;
+
+  var time = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+
+  // Send files first
+  if (hasFiles) {
+    pendingFiles.forEach(function(file) {
+      var mid = nextMsgId();
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var dataUrl = e.target.result;
+        var isImg = file.type.startsWith('image/');
+        sendEnc({ type:'file', dataUrl:dataUrl, fileName:file.name, fileSize:file.size, isImage:isImg, time:time, msgId:mid });
+        if (isImg) {
+          addImageMsg(dataUrl, time, true, mid, file.name);
+        } else {
+          addFileMsg(dataUrl, file.name, file.size, time, true, mid);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    pendingFiles = [];
+    filePreviewEl.innerHTML = '';
+    filePreviewEl.style.display = 'none';
+  }
+
+  // Send text
+  if (text) {
+    var mid = nextMsgId();
+    sendEnc({ type:'msg', text:text, time:time, msgId:mid });
+    addMsg(text, time, true, mid);
+    msgInput.value = '';
+    msgInput.style.height = 'auto';
+    stopSendTyping();
+  }
+}
+
+sendBtn.addEventListener('click', sendMsg);
+msgInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+msgInput.addEventListener('input', function() {
+  if (!conn || !conn.open) return;
+  if (!isTyping) { isTyping = true; sendEnc({ type:'typing' }); }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(stopSendTyping, 1600);
+});
+
+function stopSendTyping() {
+  if (isTyping && conn && conn.open) { isTyping = false; sendEnc({ type:'stop_typing' }); }
+  clearTimeout(typingTimer);
+}
+
+// ══════════════════════════════
+// DISCONNECT
+// ══════════════════════════════
+disconnBtn.addEventListener('click', function() {
+  sendEnc({ type:'bye' });
+  handleDisconnect(false);
+});
+
+function handleDisconnect(byPeer) {
+  removeTypingEl();
+  hideLoading();
+  clearTimeout(connTimeout);
+
+  if (chatScreen.style.display === 'flex') {
+    addSystemMsg(byPeer
+      ? '✕ ' + peerName + ' a quitté'
+      : '✕ Vous avez quitté la conversation');
+
+    setTimeout(function() {
+      chatScreen.style.display    = 'none';
+      connectScreen.style.display = 'flex';
+      messagesEl.innerHTML        = '';
+      sendBtn.disabled            = true;
+      peerCodeInput.value         = '';
+      conn = null; peerName = ''; secretKey = '';
+      sentMsgMap = {};
+      setStatus('ready', 'Prêt');
+    }, 2000);
+  }
+}
+
+// ══════════════════════════════
+// CONNECT BUTTON
+// ══════════════════════════════
+connectBtn.addEventListener('click', function() {
+  var name   = myNameInput.value.trim();
+  var code   = peerCodeInput.value.trim().toUpperCase();
+  var secret = secretInput.value;
+
+  if (!name)           { showError('Entrez votre nom'); return; }
+  if (!code)           { showError('Entrez le code du pair'); return; }
+  if (!secret)         { showError('Entrez une clé secrète partagée avec votre pair'); return; }
+  if (code === myCode) { showError('Vous ne pouvez pas vous connecter à vous-même'); return; }
+
+  myName    = name;
+  secretKey = secret;
+  hideError();
+  setStatus('connecting', 'Connexion...');
+  showLoading('Connexion en cours...');
+
+  conn = peer.connect(code, { reliable: true, serialization: 'json' });
+  setupConn();
+
+  connTimeout = setTimeout(function() {
+    if (!conn || !conn.open) {
+      conn = null;
+      hideLoading();
+      setStatus('ready', 'Prêt');
+      showError('Code introuvable — vérifiez le code et réessayez.');
+    }
+  }, 10000);
+});
+
+// ══════════════════════════════
+// COPY CODE
+// ══════════════════════════════
+myCodeBox.addEventListener('click', function() {
+  if (!myCode) return;
+  navigator.clipboard.writeText(myCode).then(function() {
+    var prev = codeText.textContent;
+    codeText.textContent = 'COPIÉ !';
+    myCodeBox.style.background = 'rgba(0,229,160,0.15)';
+    setTimeout(function() {
+      codeText.textContent = myCode;
+      myCodeBox.style.background = '';
+    }, 1400);
+  }).catch(function() {});
+});
+
+// ══════════════════════════════
+// EYE TOGGLE
+// ══════════════════════════════
+toggleEye.addEventListener('click', function() {
+  var isPass = secretInput.type === 'password';
+  secretInput.type = isPass ? 'text' : 'password';
+  eyeIcon.innerHTML = isPass
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+});
+
+// ══════════════════════════════
+// INIT
+// ══════════════════════════════
+function initPeer() {
+  myCode = genCode();
+  codeText.textContent = myCode;
+  setStatus('connecting', 'Connexion serveur...');
+
+  peer = new Peer(myCode, { debug: 0 });
+
+  peer.on('open', function(id) {
+    myCode = id;
+    codeText.textContent = myCode;
+    setStatus('ready', 'Prêt');
+    connectBtn.disabled = false;
+  });
+
+  peer.on('error', function(err) {
+    if (err.type === 'unavailable-id') {
+      peer.destroy();
+      initPeer();
+      return;
+    }
+    hideLoading();
+    setStatus('error', 'Erreur réseau');
+    showError('Erreur : ' + err.type);
+  });
+
+  peer.on('connection', function(incoming) {
+    if (conn) { incoming.close(); return; }
+
+    myName    = myNameInput.value.trim() || 'Anonyme';
+    secretKey = secretInput.value;
+
+    if (!secretKey) {
+      incoming.on('open', function() { incoming.close(); });
+      showError('Connexion entrante reçue mais aucune clé secrète saisie !');
+      return;
+    }
+
+    conn = incoming;
+    setStatus('connecting', 'Pair entrant...');
+    showLoading('Pair entrant détecté...');
+    setupConn();
+  });
+}
+
+// ══════════════════════════════
+// GATE — MOT DE PASSE HASHÉ
+// ══════════════════════════════
+// Le vrai mot de passe n'est PAS stocké ici.
+// Seul son hash SHA-256 est présent — impossible à inverser.
+// Pour changer le mot de passe : générez un nouveau hash sur
+// https://emn178.github.io/online-tools/sha256.html
+// puis remplacez la valeur de GATE_HASH ci-dessous.
+var GATE_HASH     = 'b20bee501ff2b86cdce0a11a9f9cf7aa1cfe3f8d422b9bedf1737b09587adf60';
+var MAX_ATTEMPTS  = 5;
+var gateAttempts  = 0;
+var gateLocked    = false;
+
+var gateScreen     = document.getElementById('gate-screen');
+var gateInput      = document.getElementById('gate-input');
+var gateBtn        = document.getElementById('gate-btn');
+var gateError      = document.getElementById('gate-error');
+var gateAttemptsEl = document.getElementById('gate-attempts');
+var gateEye        = document.getElementById('gate-eye');
+var gateEyeIcon    = document.getElementById('gate-eye-icon');
+
+// Hash SHA-256 via Web Crypto API (natif dans tous les navigateurs modernes)
+async function sha256(message) {
+  var msgBuffer = new TextEncoder().encode(message);
+  var hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  var hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+function unlockGate() {
+  gateScreen.classList.add('hidden');
+  document.body.classList.remove('gate-locked');
+  setTimeout(function() { gateScreen.style.display = 'none'; }, 400);
+  sessionStorage.setItem('netchat-gate', 'ok');
+  initPeer();
+}
+
+async function checkGate() {
+  if (gateLocked) return;
+  var val = gateInput.value;
+  if (!val) return;
+
+  // Calculer le hash de ce que l'utilisateur a tapé
+  var inputHash = await sha256(val);
+
+  if (inputHash === GATE_HASH) {
+    gateError.style.display = 'none';
+    gateBtn.textContent = '✓ Accès autorisé';
+    setTimeout(unlockGate, 500);
+  } else {
+    gateAttempts++;
+    gateInput.value = '';
+    gateInput.focus();
+    gateError.style.animation = 'none';
+    gateError.style.display = 'block';
+    void gateError.offsetWidth;
+    gateError.style.animation = 'shake 0.3s ease';
+
+    var remaining = MAX_ATTEMPTS - gateAttempts;
+    if (remaining <= 0) {
+      gateLocked = true;
+      gateInput.disabled = true;
+      gateBtn.disabled   = true;
+      gateError.textContent      = '🚫 Trop de tentatives. Rechargez la page.';
+      gateAttemptsEl.textContent = '';
+    } else {
+      gateError.textContent      = 'Mot de passe incorrect';
+      gateAttemptsEl.textContent = remaining + ' tentative' + (remaining > 1 ? 's' : '') + ' restante' + (remaining > 1 ? 's' : '');
+    }
+  }
+}
+
+// Si déjà authentifié dans cet onglet, passer directement
+if (sessionStorage.getItem('netchat-gate') === 'ok') {
+  gateScreen.style.display = 'none';
+  document.body.classList.remove('gate-locked');
+  initPeer();
+} else {
+  gateBtn.addEventListener('click', function() { checkGate(); });
+  gateInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') checkGate();
+  });
+  gateEye.addEventListener('click', function() {
+    var isPass = gateInput.type === 'password';
+    gateInput.type = isPass ? 'text' : 'password';
+    gateEyeIcon.innerHTML = isPass
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  });
+}
+</script>
+</body>
+</html>
