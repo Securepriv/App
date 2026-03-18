@@ -347,44 +347,82 @@ function startPeer() {
   let done = false;
 
   tmpPeer.on('open', () => {
-    const conn = tmpPeer.connect(hostId, { reliable:true });
-    conn.on('open', () => { done=true; myPeer=tmpPeer; setupConn(conn); });
-    conn.on('error', () => { if (!done) { done=true; tmpPeer.destroy(); becomeHost(); } });
-    setTimeout(() => { if (!done) { done=true; conn.close(); tmpPeer.destroy(); becomeHost(); } }, 4000);
+    const conn = tmpPeer.connect(hostId, { reliable:true, serialization:'raw' });
+    const failTimer = setTimeout(() => {
+      if (!done) { done=true; conn.close(); tmpPeer.destroy(); becomeHost(); }
+    }, 5000);
+    conn.on('open', () => {
+      if (done) return;
+      done=true; clearTimeout(failTimer);
+      myPeer = tmpPeer;
+      setupConn(conn);
+    });
+    conn.on('error', () => {
+      if (!done) { done=true; clearTimeout(failTimer); tmpPeer.destroy(); becomeHost(); }
+    });
   });
-  tmpPeer.on('error', () => { if (!done) { done=true; becomeHost(); } });
+  tmpPeer.on('error', e => {
+    if (!done) { done=true; becomeHost(); }
+  });
 }
 
 function becomeHost() {
   if (!document.getElementById('wait-screen').classList.contains('active')) return;
   const hostId = peerId(myRoom, 'h');
+  if (myPeer) { try { myPeer.destroy(); } catch(e){} myPeer=null; }
   myPeer = new Peer(hostId, { debug:0 });
-  myPeer.on('connection', conn => { if (!myConn) setupConn(conn); });
-  myPeer.on('error', () => setTimeout(startPeer, 2000));
+  myPeer.on('open', () => { /* waiting */ });
+  myPeer.on('connection', conn => {
+    if (myConn) return; // already connected
+    setupConn(conn);
+  });
+  myPeer.on('error', e => {
+    // Host ID taken (another host already) — become guest again after delay
+    if (myPeer) { try { myPeer.destroy(); } catch(e){} myPeer=null; }
+    setTimeout(startPeer, 2500);
+  });
 }
 
 // ─── CONNECTION ────────────────────────────────────────
 async function setupConn(conn) {
   myConn = conn;
-  conn.on('open', async () => {
-    conn.send(await encrypt(JSON.stringify({ type:'hello', name:myUsername })));
-  });
+
+  // Attach data handler immediately — before open fires
   conn.on('data', async raw => {
-    const plain = await decrypt(raw);
-    if (!plain) { showToast('⚠️ Clé incorrecte'); return; }
+    let plain;
+    try { plain = await decrypt(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch(e) { plain=null; }
+    if (!plain) { showToast('⚠️ Clé incorrecte ou erreur'); return; }
     let msg; try { msg = JSON.parse(plain); } catch { return; }
     handleMsg(msg);
   });
+
   conn.on('close', () => {
     appendSys('⚠️ Connexion fermée', 'warning');
     document.getElementById('status-dot').style.background = '#f87171';
     document.getElementById('status-text').textContent = 'Déconnecté';
   });
+
+  conn.on('error', e => appendSys('Erreur connexion: '+e, 'warning'));
+
+  // Send hello — if already open, send immediately; otherwise wait for open event
+  async function sendHello() {
+    conn.send(await encrypt(JSON.stringify({ type:'hello', name:myUsername })));
+  }
+
+  if (conn.open) {
+    sendHello();
+  } else {
+    conn.on('open', () => sendHello());
+  }
 }
+
+let helloDone = false;
 
 function handleMsg(msg) {
   switch (msg.type) {
     case 'hello':
+      if (helloDone) break;
+      helloDone = true;
       peerUsername = msg.name || 'Pair';
       document.getElementById('peer-name').textContent = peerUsername;
       document.getElementById('peer-avatar').textContent = peerUsername[0].toUpperCase();
@@ -567,8 +605,9 @@ function showScreen(id) {
 }
 
 function leaveWaiting() {
-  if (myPeer) { myPeer.destroy(); myPeer=null; }
+  if (myPeer) { try { myPeer.destroy(); } catch(e){} myPeer=null; }
   myConn=null;
+  helloDone=false;
   document.getElementById('join-btn').disabled = false;
   showScreen('join-screen');
 }
