@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Monde Digital — Actualité Tech & Numérique</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0c10;--bg2:#0f1218;--bg3:#161b24;--bg4:#1c2330;
+  --border:rgba(99,210,255,0.1);--border2:rgba(99,210,255,0.2);
+  --accent:#63d2ff;--accent2:#a78bfa;--accent3:#34d399;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#4a5568;
+  --danger:#f87171;--warn:#fbbf24;
+  --mono:'JetBrains Mono',monospace;--sans:'Sora',sans-serif;
+  --r:12px;--rs:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+
+/* SCREENS */
+.screen{display:none;flex-direction:column;height:100dvh;position:relative}
+.screen.active{display:flex}
+
+/* JOIN */
+#join-screen{align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(99,210,255,0.06) 0%,transparent 70%)}
+.join-card{width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:40px 36px;box-shadow:0 0 80px rgba(99,210,255,0.04),0 24px 48px rgba(0,0,0,0.5)}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.logo-text{font-family:var(--mono);font-size:18px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-sub{font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:.08em}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11px;font-family:var(--mono);color:var(--text2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.field input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;font-family:var(--mono);font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,210,255,.1)}
+.field input::placeholder{color:var(--text3)}
+.btn-primary{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--rs);font-family:var(--mono);font-size:13px;font-weight:700;color:#0a0c10;cursor:pointer;letter-spacing:.05em;transition:opacity .2s,transform .1s;margin-top:8px}
+.btn-primary:hover{opacity:.9}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.info-box{margin-top:20px;padding:12px 14px;background:rgba(99,210,255,.05);border:1px solid rgba(99,210,255,.12);border-radius:var(--rs);font-size:11px;color:var(--text2);line-height:1.6;font-family:var(--mono)}
+.info-box span{color:var(--accent)}
+
+/* WAIT */
+#wait-screen{align-items:center;justify-content:center;gap:24px;background:radial-gradient(ellipse 60% 50% at 50% 30%,rgba(167,139,250,.06) 0%,transparent 70%)}
+.wait-card{text-align:center;max-width:360px;padding:48px 32px;background:var(--bg2);border:1px solid var(--border2);border-radius:20px}
+.spinner{width:56px;height:56px;margin:0 auto 24px;position:relative}
+.spinner::before,.spinner::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid transparent}
+.spinner::before{border-top-color:var(--accent);animation:spin 1.2s linear infinite}
+.spinner::after{border-bottom-color:var(--accent2);animation:spin 1.8s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wait-title{font-size:18px;font-weight:600;margin-bottom:8px}
+.wait-sub{color:var(--text2);font-size:13px;line-height:1.6}
+.wait-room{font-family:var(--mono);font-size:13px;padding:8px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--accent);margin-top:16px;display:inline-block}
+.btn-cancel{background:transparent;border:1px solid var(--border2);border-radius:var(--rs);padding:10px 24px;color:var(--text2);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .2s;margin-top:20px}
+.btn-cancel:hover{border-color:var(--danger);color:var(--danger)}
+
+/* CHAT */
+#chat-screen{background:var(--bg)}
+.chat-header{padding:14px 20px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.peer-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#0a0c10;flex-shrink:0}
+.peer-info{flex:1;min-width:0}
+.peer-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.peer-status{font-size:11px;color:var(--accent3);font-family:var(--mono);display:flex;align-items:center;gap:4px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:pdot 2s ease-in-out infinite}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.4}}
+.header-badges{display:flex;gap:8px;align-items:center}
+.badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;letter-spacing:.06em}
+.badge-enc{background:rgba(52,211,153,.12);color:var(--accent3);border:1px solid rgba(52,211,153,.2)}
+.badge-p2p{background:rgba(99,210,255,.1);color:var(--accent);border:1px solid rgba(99,210,255,.2)}
+
+.messages{flex:1;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:2px;scroll-behavior:smooth}
+.messages::-webkit-scrollbar{width:4px}
+.messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.msg{display:flex;flex-direction:column;max-width:72%;animation:min .2s ease}
+@keyframes min{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.msg.mine{align-self:flex-end;align-items:flex-end}
+.msg.theirs{align-self:flex-start;align-items:flex-start}
+.msg.mine+.msg.theirs,.msg.theirs+.msg.mine{margin-top:10px}
+
+.bubble{padding:9px 13px;border-radius:16px;line-height:1.55;font-size:14px;word-break:break-word;white-space:pre-wrap}
+.msg.mine .bubble{background:linear-gradient(135deg,rgba(99,210,255,.18),rgba(167,139,250,.15));border:1px solid rgba(99,210,255,.2);border-bottom-right-radius:4px}
+.msg.theirs .bubble{background:var(--bg3);border:1px solid var(--border);border-bottom-left-radius:4px}
+
+.msg-meta{display:flex;align-items:center;gap:5px;margin-top:3px;padding:0 3px}
+.msg-time{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.msg-receipt{font-size:11px;color:var(--text3);transition:color .3s}
+.msg-receipt.seen{color:var(--accent)}
+
+.file-bubble{display:flex;align-items:center;gap:12px;padding:10px 14px;min-width:220px}
+.file-icon{width:36px;height:36px;background:rgba(99,210,255,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-size{font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:2px}
+.file-dl{width:28px;height:28px;border-radius:50%;background:rgba(99,210,255,.15);border:1px solid rgba(99,210,255,.3);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;flex-shrink:0;transition:background .2s}
+.file-dl:hover{background:rgba(99,210,255,.25)}
+.progress-bar{height:2px;background:var(--border);border-radius:1px;margin-top:6px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:1px;transition:width .1s}
+
+.sys-msg{text-align:center;font-family:var(--mono);font-size:11px;color:var(--text3);margin:8px 0}
+.sys-msg.connected{color:var(--accent3)}
+.sys-msg.warning{color:var(--warn)}
+
+.typing-indicator{align-self:flex-start;display:flex;align-items:center;gap:4px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;border-bottom-left-radius:4px;opacity:0;transition:opacity .2s;margin-bottom:2px}
+.typing-indicator.visible{opacity:1}
+.typing-dot{width:5px;height:5px;border-radius:50%;background:var(--text2);animation:ty 1.2s ease-in-out infinite}
+.typing-dot:nth-child(2){animation-delay:.2s}
+.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes ty{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+
+.input-area{padding:12px 16px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0}
+.input-row{display:flex;align-items:flex-end;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:8px 12px;transition:border-color .2s}
+.input-row:focus-within{border-color:var(--border2)}
+.input-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;font-size:16px;border-radius:6px;transition:color .2s,background .2s;flex-shrink:0;width:28px;height:28px;line-height:1;display:flex;align-items:center;justify-content:center}
+.input-btn:hover{color:var(--accent);background:rgba(99,210,255,.08)}
+#msg-input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:14px;resize:none;max-height:120px;min-height:24px;line-height:1.5;padding:2px 0}
+#msg-input::placeholder{color:var(--text3)}
+.send-btn{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .2s,transform .1s}
+.send-btn:hover{opacity:.85}
+.send-btn:active{transform:scale(.9)}
+.send-btn svg{width:14px;height:14px;fill:#0a0c10}
+
+.emoji-picker{position:absolute;bottom:80px;left:16px;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:12px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none;width:calc(100% - 32px);max-width:380px}
+.emoji-picker.open{display:block;animation:pin .15s ease}
+@keyframes pin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.emoji-cats{display:flex;gap:4px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.emoji-cat{flex:1;background:none;border:none;padding:6px 4px;border-radius:6px;cursor:pointer;font-size:15px;text-align:center;transition:background .15s}
+.emoji-cat:hover,.emoji-cat.active{background:var(--bg3)}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-height:180px;overflow-y:auto}
+.emoji-btn{background:none;border:none;font-size:20px;padding:6px 4px;border-radius:6px;cursor:pointer;text-align:center;transition:background .1s;line-height:1}
+.emoji-btn:hover{background:var(--bg3)}
+
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 16px;font-family:var(--mono);font-size:12px;color:var(--text2);opacity:0;transition:opacity .2s,transform .2s;z-index:200;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#file-input{display:none}
+
+/* ══════════════════════════════════════════
+   CAMOUFLAGE — Magazine "Le Monde Digital"
+══════════════════════════════════════════ */
+#camo-layer {
+  position:fixed;inset:0;z-index:9999;
+  background:#f5f0e8;
+  font-family:'Georgia','Times New Roman',serif;
+  overflow-y:auto;
+  color:#1a1a1a;
+}
+/* Nav */
+.mag-nav {
+  background:#1a1a1a;
+  padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:48px;position:sticky;top:0;z-index:10;
+}
+.mag-nav-logo {
+  font-family:'Georgia',serif;font-size:22px;font-weight:700;
+  color:#f5f0e8;letter-spacing:.02em;
+}
+.mag-nav-logo span{color:#c8a84b;}
+.mag-nav-links {
+  display:flex;gap:20px;list-style:none;
+}
+.mag-nav-links li a {
+  color:#aaa;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  text-decoration:none;transition:color .2s;font-family:'Georgia',serif;
+}
+.mag-nav-links li a:hover{color:#c8a84b;}
+.mag-nav-right{display:flex;align-items:center;gap:12px;}
+.mag-sub-btn {
+  background:#c8a84b;color:#1a1a1a;border:none;
+  padding:7px 16px;border-radius:3px;
+  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;transition:background .2s;font-family:'Georgia',serif;
+}
+.mag-sub-btn:hover{background:#d4b55a;}
+
+/* Header strip */
+.mag-header-strip {
+  background:#f5f0e8;
+  border-bottom:3px solid #1a1a1a;
+  border-top:1px solid #1a1a1a;
+  text-align:center;
+  padding:6px 0;
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#555;
+}
+
+/* Hero */
+.mag-hero {
+  display:grid;grid-template-columns:1fr 380px;
+  gap:0;max-width:1100px;margin:0 auto;
+  padding:32px 24px 24px;border-bottom:1px solid #ccc;
+}
+.mag-hero-main {}
+.mag-hero-tag {
+  font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:#c8a84b;font-family:'Georgia',serif;margin-bottom:8px;
+}
+.mag-hero-title {
+  font-size:clamp(28px,4vw,48px);line-height:1.1;font-weight:700;
+  margin-bottom:16px;color:#1a1a1a;
+}
+.mag-hero-sub {
+  font-size:16px;line-height:1.6;color:#444;
+  max-width:560px;margin-bottom:20px;
+}
+.mag-hero-byline {
+  font-size:12px;color:#888;letter-spacing:.05em;
+  border-top:1px solid #ccc;padding-top:12px;
+}
+.mag-hero-img {
+  background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);
+  border-radius:4px;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;padding:32px;
+  min-height:280px;
+}
+.mag-hero-img-icon{font-size:64px;opacity:.9;}
+.mag-hero-img-caption{color:#aaa;font-size:12px;text-align:center;letter-spacing:.05em;}
+
+/* Grid articles */
+.mag-grid {
+  max-width:1100px;margin:0 auto;padding:28px 24px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+  border-bottom:1px solid #ccc;
+}
+.mag-article {}
+.mag-article-img {
+  width:100%;height:160px;object-fit:cover;border-radius:3px;margin-bottom:12px;
+  display:flex;align-items:center;justify-content:center;font-size:48px;
+}
+.mag-article-cat {
+  font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+  color:#c8a84b;margin-bottom:6px;
+}
+.mag-article-title {
+  font-size:18px;line-height:1.3;font-weight:700;margin-bottom:8px;color:#1a1a1a;
+}
+.mag-article-excerpt {
+  font-size:13px;line-height:1.6;color:#555;
+}
+.mag-article-img-1{background:linear-gradient(135deg,#1b4332,#2d6a4f);}
+.mag-article-img-2{background:linear-gradient(135deg,#6b2d0f,#9d4e15);}
+.mag-article-img-3{background:linear-gradient(135deg,#0d1b2a,#1b2838);}
+
+/* Sidebar layout */
+.mag-bottom {
+  max-width:1100px;margin:0 auto;padding:28px 24px;
+  display:grid;grid-template-columns:2fr 1fr;gap:32px;
+}
+.mag-opinion {}
+.mag-opinion-title {
+  font-size:13px;letter-spacing:.15em;text-transform:uppercase;
+  border-bottom:2px solid #1a1a1a;padding-bottom:8px;margin-bottom:20px;color:#1a1a1a;
+}
+.mag-opinion-item {
+  padding:16px 0;border-bottom:1px solid #ddd;
+}
+.mag-opinion-item:last-child{border-bottom:none;}
+.mag-opinion-q {
+  font-size:15px;font-weight:700;line-height:1.4;margin-bottom:6px;color:#1a1a1a;
+}
+.mag-opinion-a{font-size:13px;line-height:1.6;color:#555;}
+.mag-sidebar {}
+.mag-sidebar-title {
+  font-size:13px;letter-spacing:.15em;text-transform:uppercase;
+  border-bottom:2px solid #c8a84b;padding-bottom:8px;margin-bottom:20px;color:#1a1a1a;
+}
+
+/* PREMIUM CTA box */
+.mag-premium-box {
+  background:#1a1a1a;color:#f5f0e8;
+  padding:24px;border-radius:4px;margin-bottom:24px;
+}
+.mag-premium-box h3 {
+  font-size:18px;margin-bottom:8px;color:#c8a84b;
+}
+.mag-premium-box p {
+  font-size:13px;line-height:1.6;color:#ccc;margin-bottom:16px;
+}
+.mag-premium-cta {
+  width:100%;background:#c8a84b;color:#1a1a1a;border:none;
+  padding:11px;border-radius:3px;font-size:13px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+  transition:background .2s;font-family:'Georgia',serif;
+}
+.mag-premium-cta:hover{background:#d4b55a;}
+.mag-trending {}
+.mag-trending-item {
+  display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #ddd;
+  align-items:flex-start;
+}
+.mag-trending-num {
+  font-size:24px;font-weight:700;color:#ddd;min-width:28px;line-height:1;
+}
+.mag-trending-text{font-size:13px;line-height:1.4;color:#333;font-weight:600;}
+
+/* Footer */
+.mag-footer {
+  background:#1a1a1a;color:#888;padding:20px 24px;
+  text-align:center;font-size:12px;letter-spacing:.05em;
+}
+.mag-footer span{color:#c8a84b;}
+
+/* ── PAYMENT MODAL ── */
+#payment-modal {
+  display:none;position:fixed;inset:0;z-index:10000;
+  background:rgba(0,0,0,.7);align-items:center;justify-content:center;
+  padding:16px;
+}
+#payment-modal.open{display:flex;}
+.pay-card {
+  background:#fff;border-radius:12px;
+  width:100%;max-width:460px;overflow:hidden;
+  box-shadow:0 24px 64px rgba(0,0,0,.4);
+  animation:pay-in .25s ease;
+}
+@keyframes pay-in{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.pay-header {
+  background:#003087;padding:20px 24px 16px;
+  display:flex;align-items:center;gap:12px;
+}
+.pay-logo-pp {
+  font-size:22px;font-weight:900;color:#fff;letter-spacing:-.03em;
+  font-family:Arial,sans-serif;
+}
+.pay-logo-pp span{color:#009cde;}
+.pay-header-text{color:#c0d8f0;font-size:13px;font-family:Arial,sans-serif;}
+.pay-header-amount{margin-left:auto;text-align:right;}
+.pay-header-amount .amt{color:#fff;font-size:22px;font-weight:700;font-family:Arial,sans-serif;}
+.pay-header-amount .lbl{color:#c0d8f0;font-size:11px;font-family:Arial,sans-serif;}
+
+.pay-body{padding:24px;}
+.pay-section-title {
+  font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:#666;margin-bottom:12px;font-family:Arial,sans-serif;
+}
+.pay-cards-row {
+  display:flex;gap:8px;margin-bottom:20px;
+}
+.pay-card-option {
+  flex:1;border:2px solid #e0e0e0;border-radius:8px;
+  padding:10px 8px;cursor:pointer;text-align:center;
+  transition:border-color .15s,background .15s;
+  font-family:Arial,sans-serif;
+}
+.pay-card-option:hover{border-color:#003087;background:#f0f5ff;}
+.pay-card-option.selected{border-color:#003087;background:#f0f5ff;}
+.pay-card-option .card-logo{font-size:22px;margin-bottom:4px;}
+.pay-card-option .card-name{font-size:10px;color:#666;font-weight:600;}
+
+/* Visa logo */
+.visa-logo{
+  font-family:Arial,sans-serif;font-size:16px;font-weight:900;
+  color:#1a1f71;letter-spacing:-.02em;line-height:1;
+}
+/* Mastercard logo */
+.mc-logo{position:relative;width:36px;height:22px;display:inline-block;margin:0 auto 4px;}
+.mc-c1,.mc-c2{position:absolute;width:22px;height:22px;border-radius:50%;}
+.mc-c1{background:#eb001b;left:0;}
+.mc-c2{background:#f79e1b;right:0;mix-blend-mode:multiply;}
+/* PayPal logo */
+.pp-logo{font-family:Arial,sans-serif;font-weight:900;font-size:15px;}
+.pp-logo .pp1{color:#003087;}.pp-logo .pp2{color:#009cde;}
+
+.pay-input-group{margin-bottom:16px;}
+.pay-input-group label{display:block;font-size:12px;color:#555;margin-bottom:6px;font-family:Arial,sans-serif;font-weight:600;}
+.pay-input-group input {
+  width:100%;padding:11px 14px;
+  border:1.5px solid #ddd;border-radius:6px;
+  font-size:14px;font-family:Arial,sans-serif;outline:none;
+  transition:border-color .15s;color:#333;background:#fafafa;
+}
+.pay-input-group input:focus{border-color:#003087;background:#fff;}
+.pay-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.pay-secure-row {
+  display:flex;align-items:center;gap:6px;
+  background:#f7f9fc;border-radius:6px;padding:8px 12px;
+  margin-bottom:16px;
+}
+.pay-secure-row span{font-size:11px;color:#666;font-family:Arial,sans-serif;}
+.pay-lock{color:#009cde;font-size:14px;}
+
+/* Divider */
+.pay-divider {
+  display:flex;align-items:center;gap:12px;margin:20px 0;
+}
+.pay-divider hr{flex:1;border:none;border-top:1px solid #e0e0e0;}
+.pay-divider span{font-size:12px;color:#aaa;font-family:Arial,sans-serif;white-space:nowrap;}
+
+/* Coupon section */
+.pay-coupon-box {
+  background:#fffbf0;border:1.5px dashed #c8a84b;
+  border-radius:8px;padding:16px;margin-bottom:20px;
+}
+.pay-coupon-label{font-size:13px;color:#7a6520;font-weight:700;margin-bottom:10px;font-family:Arial,sans-serif;}
+.pay-coupon-row{display:flex;gap:8px;}
+.pay-coupon-input {
+  flex:1;padding:10px 14px;border:1.5px solid #d4b55a;border-radius:6px;
+  font-size:14px;font-family:'Courier New',monospace;outline:none;background:#fff;
+  letter-spacing:.12em;color:#333;
+  transition:border-color .15s;
+}
+.pay-coupon-input:focus{border-color:#c8a84b;}
+.pay-coupon-btn {
+  padding:10px 18px;background:#c8a84b;color:#1a1a1a;
+  border:none;border-radius:6px;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:Arial,sans-serif;letter-spacing:.05em;
+  transition:background .15s;white-space:nowrap;
+}
+.pay-coupon-btn:hover{background:#d4b55a;}
+.pay-coupon-error {
+  font-size:12px;color:#c0392b;margin-top:6px;
+  font-family:Arial,sans-serif;display:none;
+}
+.pay-coupon-error.show{display:block;}
+
+.pay-submit-btn {
+  width:100%;padding:14px;background:#003087;color:#fff;
+  border:none;border-radius:8px;font-size:15px;font-weight:700;
+  cursor:pointer;font-family:Arial,sans-serif;letter-spacing:.03em;
+  transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.pay-submit-btn:hover{background:#002270;}
+.pay-submit-btn .pp-btn-logo{font-weight:900;color:#fff;}
+.pay-submit-btn .pp-btn-logo span{color:#009cde;}
+.pay-footer-text{text-align:center;font-size:11px;color:#aaa;margin-top:12px;font-family:Arial,sans-serif;}
+
+.pay-close {
+  position:absolute;top:12px;right:16px;
+  background:none;border:none;color:#fff;font-size:20px;cursor:pointer;
+  opacity:.7;transition:opacity .15s;
+}
+.pay-close:hover{opacity:1;}
+
+@media(max-width:700px){
+  .mag-hero{grid-template-columns:1fr;}
+  .mag-hero-img{display:none;}
+  .mag-grid{grid-template-columns:1fr;}
+  .mag-bottom{grid-template-columns:1fr;}
+  .mag-nav-links{display:none;}
+}
+
+</style>
+</head>
+<body>
+
+<!-- MAGAZINE COVER -->
+<div id="camo-layer">
+
+  <!-- Nav -->
+  <nav class="mag-nav">
+    <div class="mag-nav-logo">Le<span>Monde</span>Digital</div>
+    <ul class="mag-nav-links">
+      <li><a href="#">Tech</a></li>
+      <li><a href="#">Économie</a></li>
+      <li><a href="#">Science</a></li>
+      <li><a href="#">Société</a></li>
+      <li><a href="#">Culture</a></li>
+    </ul>
+    <div class="mag-nav-right">
+      <button class="mag-sub-btn" onclick="openPayment()">Passer à Premium ★</button>
+    </div>
+  </nav>
+
+  <div class="mag-header-strip">
+    Édition du jour · Intelligence Artificielle · Cybersécurité · Économie numérique
+  </div>
+
+  <!-- Hero -->
+  <div class="mag-hero">
+    <div class="mag-hero-main">
+      <div class="mag-hero-tag">À la une · Cybersécurité</div>
+      <h1 class="mag-hero-title">La révolution silencieuse des communications chiffrées de bout en bout</h1>
+      <p class="mag-hero-sub">
+        À mesure que les gouvernements intensifient leur surveillance numérique, des millions d'utilisateurs se tournent vers des protocoles de chiffrement avancés. Une tendance qui redéfinit la notion même de vie privée à l'ère post-Snowden.
+      </p>
+      <div class="mag-hero-byline">Par <strong>Isabelle Marchand</strong> · Publié aujourd'hui à 07h42 · 8 min de lecture</div>
+    </div>
+    <div class="mag-hero-img">
+      <div class="mag-hero-img-icon">🔐</div>
+      <div class="mag-hero-img-caption">Illustration: chiffrement AES-256 / WebRTC</div>
+    </div>
+  </div>
+
+  <!-- 3-col grid -->
+  <div class="mag-grid">
+    <div class="mag-article">
+      <div class="mag-article-img mag-article-img-1">🌿</div>
+      <div class="mag-article-cat">Intelligence Artificielle</div>
+      <div class="mag-article-title">Les modèles de langage transforment la recherche médicale en profondeur</div>
+      <div class="mag-article-excerpt">Des équipes de Stanford et d'Oxford publient des résultats inédits sur la détection précoce de pathologies rares grâce aux LLM de nouvelle génération.</div>
+    </div>
+    <div class="mag-article">
+      <div class="mag-article-img mag-article-img-2">📊</div>
+      <div class="mag-article-cat">Économie numérique</div>
+      <div class="mag-article-title">Fintech : pourquoi les banques traditionnelles cèdent du terrain en Afrique</div>
+      <div class="mag-article-excerpt">Le mobile money représente désormais 48% des transactions financières au sud du Sahara, bouleversant les modèles établis depuis des décennies.</div>
+    </div>
+    <div class="mag-article">
+      <div class="mag-article-img mag-article-img-3">🛰️</div>
+      <div class="mag-article-cat">Espace & Tech</div>
+      <div class="mag-article-title">Starlink et ses concurrents redessinent la carte de la connectivité mondiale</div>
+      <div class="mag-article-excerpt">Avec plus de 6 000 satellites en orbite basse, l'accès à Internet haut débit depuis les zones les plus reculées du globe devient une réalité tangible.</div>
+    </div>
+  </div>
+
+  <!-- Bottom: opinion + sidebar -->
+  <div class="mag-bottom">
+    <div class="mag-opinion">
+      <div class="mag-opinion-title">Débats & Analyses</div>
+      <div class="mag-opinion-item">
+        <div class="mag-opinion-q">L'Europe peut-elle vraiment imposer sa souveraineté numérique face aux GAFAM ?</div>
+        <div class="mag-opinion-a">Le RGPD a posé les bases, mais les experts s'interrogent sur la capacité réelle des institutions européennes à faire respecter ces règles au-delà de simples amendes symboliques pour des géants dont les bénéfices se comptent en centaines de milliards.</div>
+      </div>
+      <div class="mag-opinion-item">
+        <div class="mag-opinion-q">Blockchain et traçabilité alimentaire : promesse tenue ou marketing technologique ?</div>
+        <div class="mag-opinion-a">Trois ans après les grands déploiements pilotes, les résultats sont contrastés. Si quelques chaînes logistiques ont amélioré leur transparence, la majorité des projets peinent à dépasser le stade expérimental face à des coûts d'implémentation prohibitifs.</div>
+      </div>
+      <div class="mag-opinion-item">
+        <div class="mag-opinion-q">Vers une pénurie mondiale de semi-conducteurs structurelle ?</div>
+        <div class="mag-opinion-a">Les tensions géopolitiques autour de Taïwan, combinées à une demande explosive portée par l'IA générative, font craindre à plusieurs analystes une crise d'approvisionnement durable dont les effets se feront sentir bien au-delà du secteur technologique.</div>
+      </div>
+    </div>
+    <div class="mag-sidebar">
+      <div class="mag-premium-box">
+        <h3>★ Accès Premium</h3>
+        <p>Débloquez l'intégralité de nos archives, nos newsletters exclusives et nos analyses approfondies sans publicité.</p>
+        <button class="mag-premium-cta" onclick="openPayment()">Activer Premium — 9,99 € / mois</button>
+      </div>
+      <div class="mag-sidebar-title">Tendances</div>
+      <div class="mag-trending">
+        <div class="mag-trending-item"><div class="mag-trending-num">1</div><div class="mag-trending-text">ChatGPT-5 dévoilé : ce qui change vraiment pour les entreprises</div></div>
+        <div class="mag-trending-item"><div class="mag-trending-num">2</div><div class="mag-trending-text">Cyberattaque massive contre des infrastructures critiques européennes</div></div>
+        <div class="mag-trending-item"><div class="mag-trending-num">3</div><div class="mag-trending-text">Le bitcoin franchit un nouveau seuil historique au-dessus des 95 000 $</div></div>
+        <div class="mag-trending-item"><div class="mag-trending-num">4</div><div class="mag-trending-text">Apple abandonne son projet de voiture autonome après dix ans de R&D</div></div>
+        <div class="mag-trending-item"><div class="mag-trending-num">5</div><div class="mag-trending-text">Open source : Meta libère un nouveau modèle multimodal 70B</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mag-footer">
+    © 2025 <span>Le Monde Digital</span> · Tous droits réservés · Mentions légales · CGU · Données personnelles
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div id="payment-modal">
+  <div class="pay-card" style="position:relative;">
+    <button class="pay-close" onclick="closePayment()">✕</button>
+
+    <div class="pay-header">
+      <div>
+        <div class="pay-logo-pp">Pay<span>Pal</span></div>
+        <div class="pay-header-text">Paiement sécurisé · Le Monde Digital</div>
+      </div>
+      <div class="pay-header-amount">
+        <div class="amt">9,99 €</div>
+        <div class="lbl">Abonnement Premium / mois</div>
+      </div>
+    </div>
+
+    <div class="pay-body">
+      <div class="pay-section-title">Choisissez votre moyen de paiement</div>
+      <div class="pay-cards-row">
+        <div class="pay-card-option selected" onclick="selectCard(this)">
+          <div class="card-logo"><div class="pp-logo"><span class="pp1">Pay</span><span class="pp2">Pal</span></div></div>
+          <div class="card-name">PayPal</div>
+        </div>
+        <div class="pay-card-option" onclick="selectCard(this)">
+          <div class="card-logo"><div class="visa-logo">VISA</div></div>
+          <div class="card-name">Visa</div>
+        </div>
+        <div class="pay-card-option" onclick="selectCard(this)">
+          <div class="card-logo">
+            <div class="mc-logo"><div class="mc-c1"></div><div class="mc-c2"></div></div>
+          </div>
+          <div class="card-name" style="margin-top:4px;">Mastercard</div>
+        </div>
+      </div>
+
+      <div class="pay-input-group">
+        <label>Titulaire de la carte</label>
+        <input type="text" placeholder="Jean Dupont" autocomplete="cc-name">
+      </div>
+      <div class="pay-input-group">
+        <label>Numéro de carte</label>
+        <input type="text" placeholder="1234  5678  9012  3456" maxlength="19" autocomplete="cc-number">
+      </div>
+      <div class="pay-row">
+        <div class="pay-input-group">
+          <label>Date d'expiration</label>
+          <input type="text" placeholder="MM / AA" maxlength="7" autocomplete="cc-exp">
+        </div>
+        <div class="pay-input-group">
+          <label>CVV</label>
+          <input type="password" placeholder="•••" maxlength="4" autocomplete="cc-csc">
+        </div>
+      </div>
+
+      <div class="pay-secure-row">
+        <span class="pay-lock">🔒</span>
+        <span>Vos données sont chiffrées et sécurisées par SSL 256 bits</span>
+      </div>
+
+      <div class="pay-divider">
+        <hr><span>Vous avez un code promotionnel ?</span><hr>
+      </div>
+
+      <div class="pay-coupon-box">
+        <div class="pay-coupon-label">🎟 Code coupon / accès partenaire</div>
+        <div class="pay-coupon-row">
+          <input type="text" class="pay-coupon-input" id="coupon-input" placeholder="XXXX-XXXX" autocomplete="off" onkeydown="if(event.key==='Enter') checkCoupon()">
+          <button class="pay-coupon-btn" onclick="checkCoupon()">Valider</button>
+        </div>
+        <div class="pay-coupon-error" id="coupon-error">Code incorrect. Veuillez réessayer.</div>
+      </div>
+
+      <button class="pay-submit-btn" onclick="fakePaySubmit()">
+        <span>Payer 9,99 € avec</span>
+        <span class="pp-btn-logo">Pay<span>Pal</span></span>
+      </button>
+      <div class="pay-footer-text">En confirmant, vous acceptez nos CGU. Annulable à tout moment.</div>
+    </div>
+  </div>
+</div>
+
+
+<div id="real-app" style="display:none;width:100%;height:100dvh;flex-direction:column;">
+<!-- JOIN SCREEN -->
+<div id="join-screen" class="screen active">
+  <div class="join-card">
+    <div class="logo">
+      <div class="logo-icon">🔐</div>
+      <div>
+        <div class="logo-text">SecureChat</div>
+        <div class="logo-sub">P2P · AES-256-GCM · No server</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Votre pseudonyme</label>
+      <input type="text" id="username" placeholder="Alice" maxlength="24" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Nom de la salle</label>
+      <input type="text" id="room-name" placeholder="salle-secrete-42" maxlength="48" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Clé secrète partagée</label>
+      <input type="password" id="secret-key" placeholder="••••••••••" maxlength="64" autocomplete="off">
+    </div>
+    <button class="btn-primary" id="join-btn" onclick="joinRoom()">Rejoindre →</button>
+    <div class="info-box">
+      <span>⚡ Auto-connexion</span> si nom + clé identiques.<br>
+      <span>🔒 AES-256-GCM</span> — chiffré dans le navigateur.<br>
+      <span>🌐 WebRTC P2P</span> — aucun message stocké.
+    </div>
+  </div>
+</div>
+
+<!-- WAIT SCREEN -->
+<div id="wait-screen" class="screen">
+  <div class="wait-card">
+    <div class="spinner"></div>
+    <div class="wait-title">Salle d'attente</div>
+    <div class="wait-sub">En attente de l'autre participant avec la même clé…</div>
+    <div class="wait-room" id="wait-room-label"></div>
+    <button class="btn-cancel" onclick="leaveWaiting()">✕ Annuler</button>
+  </div>
+</div>
+
+<!-- CHAT SCREEN -->
+<div id="chat-screen" class="screen">
+  <div class="chat-header">
+    <div class="peer-avatar" id="peer-avatar">?</div>
+    <div class="peer-info">
+      <div class="peer-name" id="peer-name">—</div>
+      <div class="peer-status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Connecté · E2E chiffré</span>
+      </div>
+    </div>
+    <div class="header-badges">
+      <div class="badge badge-enc">AES-256</div>
+      <div class="badge badge-p2p">P2P</div>
+    </div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="typing-indicator" id="typing-indicator">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  </div>
+
+  <div class="emoji-picker" id="emoji-picker"></div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <button class="input-btn" id="emoji-toggle-btn" onclick="toggleEmoji()" title="Emojis">😊</button>
+      <button class="input-btn" onclick="document.getElementById('file-input').click()" title="Fichier">📎</button>
+      <textarea id="msg-input" placeholder="Message chiffré…" rows="1"
+        onkeydown="onKey(event)" oninput="onInput()"></textarea>
+      <button class="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2 12L22 2L15 22L11 13L2 12Z"/></svg>
+      </button>
+    </div>
+  </div>
+  <input type="file" id="file-input" onchange="sendFile(this.files[0])">
+</div>
+
+<div class="toast" id="toast"></div>
+</div><!-- /real-app -->
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+// ─── EMOJI DATA ────────────────────────────────────────
+const EMOJIS = {
+  '😀':['😀','😂','🤣','😍','🥰','😎','🤔','😴','😭','🥺','😡','🤯','🤩','😇','😈','🤮','😷','🤒','🎉','❤️','🔥','💯','✨','👍','👎','👋','🤝','🙏','💪','🧠'],
+  '🐶':['🐶','🐱','🐭','🐰','🦊','🐻','🐼','🐨','🦁','🐮','🐷','🐸','🐵','🦄','🦋','🐝','🌸','🌺','🌻','🌈','⭐','🌙','☀️','❄️','🌊','🍀','🌴','🦀','🐠','🦈'],
+  '🍎':['🍎','🍊','🍋','🍇','🍓','🍑','🥝','🍕','🍔','🌮','🍜','🍣','🍦','🎂','🍩','☕','🧃','🍺','🥂','🍾','🧁','🥐','🥗','🍿','🥨','🍫','🍭','🧋','🥤','🍹'],
+  '🚀':['🚀','✈️','🚗','🚕','🚌','🚂','🛸','🚁','⛵','🚤','🏎️','🚓','🚑','🚒','🛵','🚲','🛷','🗺️','🧭','🏁','🚦','🌍','🏔️','🏖️','🏕️','🗼','🏟️','🎡','🎢','🎠'],
+  '💻':['💻','📱','⌨️','🖱️','🖥️','📷','📸','📹','🎮','🕹️','📺','📻','🔋','🔌','💡','🔦','📡','🔭','🔬','🧪','🧬','🔮','🪄','🎭','🎨','🎬','🎤','🎧','🎵','🎶'],
+};
+const EMOJI_CATS = Object.keys(EMOJIS);
+let curCat = EMOJI_CATS[0];
+
+function buildEmojiPicker() {
+  const p = document.getElementById('emoji-picker');
+  p.innerHTML = '';
+  const cats = document.createElement('div');
+  cats.className = 'emoji-cats';
+  EMOJI_CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'emoji-cat' + (c === curCat ? ' active' : '');
+    b.textContent = c;
+    b.onclick = () => { curCat = c; document.querySelectorAll('.emoji-cat').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderEmojiGrid(); };
+    cats.appendChild(b);
+  });
+  const grid = document.createElement('div');
+  grid.className = 'emoji-grid';
+  grid.id = 'emoji-grid';
+  p.appendChild(cats);
+  p.appendChild(grid);
+  renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+  const g = document.getElementById('emoji-grid');
+  g.innerHTML = '';
+  EMOJIS[curCat].forEach(e => {
+    const b = document.createElement('button');
+    b.className = 'emoji-btn';
+    b.textContent = e;
+    b.onclick = () => insertEmoji(e);
+    g.appendChild(b);
+  });
+}
+
+function insertEmoji(e) {
+  const inp = document.getElementById('msg-input');
+  const s = inp.selectionStart, en = inp.selectionEnd;
+  inp.value = inp.value.slice(0,s) + e + inp.value.slice(en);
+  inp.focus();
+  inp.setSelectionRange(s+e.length, s+e.length);
+  autoResize(inp);
+}
+
+function toggleEmoji() {
+  document.getElementById('emoji-picker').classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  const p = document.getElementById('emoji-picker');
+  const b = document.getElementById('emoji-toggle-btn');
+  if (!p.contains(e.target) && e.target !== b) p.classList.remove('open');
+});
+
+// ─── CRYPTO ────────────────────────────────────────────
+let cryptoKey = null;
+
+async function deriveKey(room, secret) {
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt:enc.encode('sc-salt-'+room), iterations:100000, hash:'SHA-256' },
+    base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+
+async function encrypt(str) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, cryptoKey, new TextEncoder().encode(str));
+  const out = new Uint8Array(12 + ct.byteLength);
+  out.set(iv); out.set(new Uint8Array(ct), 12);
+  return btoa(String.fromCharCode(...out));
+}
+
+async function decrypt(b64) {
+  try {
+    const buf = Uint8Array.from(atob(b64), c=>c.charCodeAt(0));
+    const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:buf.slice(0,12) }, cryptoKey, buf.slice(12));
+    return new TextDecoder().decode(pt);
+  } catch { return null; }
+}
+
+// ─── STATE ─────────────────────────────────────────────
+let myPeer=null, myConn=null, myUsername='', peerUsername='', myRoom='';
+let typingTimer=null, isTyping=false;
+let pendingFiles={}, myMsgMap={};
+
+// IntersectionObserver: send "seen" only when bubble enters viewport
+const msgObserver = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const id = entry.target.dataset.msgId;
+    if (!id) return;
+    // Only send seen if chat is visible and we're connected
+    const chatActive = document.getElementById('chat-screen').classList.contains('active');
+    if (chatActive && myConn && myConn.open) {
+      sendEncoded({ type:'seen', id });
+      msgObserver.unobserve(entry.target); // stop observing after seen
+    }
+  });
+}, { threshold: 0.6 }); // 60% of bubble must be visible
+
+function peerId(room, suffix) {
+  return 'sc-' + btoa(unescape(encodeURIComponent(room))).replace(/[^a-zA-Z0-9]/g,'').slice(0,28) + '-' + suffix;
+}
+
+// ─── JOIN ──────────────────────────────────────────────
+async function joinRoom() {
+  const u = document.getElementById('username').value.trim();
+  const r = document.getElementById('room-name').value.trim();
+  const k = document.getElementById('secret-key').value.trim();
+  if (!u||!r||!k) { showToast('Remplissez tous les champs'); return; }
+
+  document.getElementById('join-btn').disabled = true;
+  myUsername = u; myRoom = r;
+  cryptoKey = await deriveKey(r, k);
+
+  showScreen('wait-screen');
+  document.getElementById('wait-room-label').textContent = '# ' + r;
+  startPeer();
+}
+
+function startPeer() {
+  const hostId = peerId(myRoom, 'h');
+  const guestId = peerId(myRoom, 'g') + Date.now().toString(36).slice(-4);
+  const tmpPeer = new Peer(guestId, { debug:0 });
+  let done = false;
+
+  tmpPeer.on('open', () => {
+    const conn = tmpPeer.connect(hostId, { reliable:true, serialization:'raw' });
+    const failTimer = setTimeout(() => {
+      if (!done) { done=true; conn.close(); tmpPeer.destroy(); becomeHost(); }
+    }, 5000);
+    conn.on('open', () => {
+      if (done) return;
+      done=true; clearTimeout(failTimer);
+      myPeer = tmpPeer;
+      setupConn(conn);
+    });
+    conn.on('error', () => {
+      if (!done) { done=true; clearTimeout(failTimer); tmpPeer.destroy(); becomeHost(); }
+    });
+  });
+  tmpPeer.on('error', e => {
+    if (!done) { done=true; becomeHost(); }
+  });
+}
+
+function becomeHost() {
+  if (!document.getElementById('wait-screen').classList.contains('active')) return;
+  const hostId = peerId(myRoom, 'h');
+  if (myPeer) { try { myPeer.destroy(); } catch(e){} myPeer=null; }
+  myPeer = new Peer(hostId, { debug:0 });
+  myPeer.on('open', () => { /* waiting */ });
+  myPeer.on('connection', conn => {
+    if (myConn) return; // already connected
+    setupConn(conn);
+  });
+  myPeer.on('error', e => {
+    // Host ID taken (another host already) — become guest again after delay
+    if (myPeer) { try { myPeer.destroy(); } catch(e){} myPeer=null; }
+    setTimeout(startPeer, 2500);
+  });
+}
+
+// ─── CONNECTION ────────────────────────────────────────
+async function setupConn(conn) {
+  myConn = conn;
+
+  // Attach data handler immediately — before open fires
+  conn.on('data', async raw => {
+    let plain;
+    try { plain = await decrypt(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)); } catch(e) { plain=null; }
+    if (!plain) { showToast('⚠️ Clé incorrecte ou erreur'); return; }
+    let msg; try { msg = JSON.parse(plain); } catch { return; }
+    handleMsg(msg);
+  });
+
+  conn.on('close', () => {
+    appendSys('⚠️ Connexion fermée', 'warning');
+    document.getElementById('status-dot').style.background = '#f87171';
+    document.getElementById('status-text').textContent = 'Déconnecté';
+  });
+
+  conn.on('error', e => appendSys('Erreur connexion: '+e, 'warning'));
+
+  // Send hello — if already open, send immediately; otherwise wait for open event
+  async function sendHello() {
+    conn.send(await encrypt(JSON.stringify({ type:'hello', name:myUsername })));
+  }
+
+  if (conn.open) {
+    sendHello();
+  } else {
+    conn.on('open', () => sendHello());
+  }
+}
+
+let helloDone = false;
+
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'hello':
+      if (helloDone) break;
+      helloDone = true;
+      peerUsername = msg.name || 'Pair';
+      document.getElementById('peer-name').textContent = peerUsername;
+      document.getElementById('peer-avatar').textContent = peerUsername[0].toUpperCase();
+      showScreen('chat-screen');
+      appendSys('✓ Connecté avec ' + peerUsername, 'connected');
+      buildEmojiPicker();
+      break;
+    case 'text':
+      appendBubble('theirs', msg.content, msg.id, msg.time);
+      // "seen" only sent when bubble is actually visible (IntersectionObserver)
+      break;
+    case 'typing':
+      document.getElementById('typing-indicator').classList.toggle('visible', msg.active);
+      if (msg.active) scrollBottom();
+      break;
+    case 'seen':
+      const el = myMsgMap[msg.id];
+      if (el) { el.textContent = '✓✓'; el.classList.add('seen'); }
+      break;
+    case 'file-meta':
+      pendingFiles[msg.id] = { name:msg.name, size:msg.size, type:msg.mime, chunks:[], total:msg.chunks, received:0 };
+      appendFileBubble('theirs', msg, null);
+      break;
+    case 'file-chunk':
+      recvChunk(msg);
+      break;
+  }
+}
+
+// ─── SEND ──────────────────────────────────────────────
+async function sendEncoded(obj) {
+  if (!myConn || !myConn.open) return;
+  myConn.send(await encrypt(JSON.stringify(obj)));
+}
+
+async function sendMessage() {
+  if (!myConn || !myConn.open) { showToast('Non connecté'); return; }
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; autoResize(inp);
+  const id = genId(), time = timeStr();
+  sendEncoded({ type:'text', id, content:text, time });
+  appendBubble('mine', text, id, time);
+  stopTyping();
+}
+
+const CHUNK = 16384;
+
+// Safe base64 encode for large Uint8Arrays (avoids stack overflow)
+function u8ToB64(u8) {
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+
+// Safe base64 decode
+function b64ToU8(b64) {
+  const s = atob(b64);
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u;
+}
+
+// Store local file URLs for sender's own files
+const myFileUrls = {};
+
+async function sendFile(file) {
+  if (!file || !myConn || !myConn.open) return;
+  if (file.size > 50*1024*1024) { showToast('Max 50 MB'); return; }
+  document.getElementById('file-input').value = '';
+  const id = genId(), time = timeStr();
+  const totalChunks = Math.ceil(file.size / CHUNK);
+  const meta = { type:'file-meta', id, name:file.name, size:file.size, mime:file.type, chunks:totalChunks, time };
+  sendEncoded(meta);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // Create local blob URL for sender so they can preview/download too
+  const localUrl = URL.createObjectURL(new Blob([bytes], { type: file.type||'application/octet-stream' }));
+  myFileUrls[id] = { url: localUrl, name: file.name, mime: file.type };
+  appendFileBubble('mine', meta, localUrl);
+  for (let i = 0; i < totalChunks; i++) {
+    const slice = bytes.slice(i*CHUNK, (i+1)*CHUNK);
+    const b64 = u8ToB64(slice);
+    sendEncoded({ type:'file-chunk', id, index:i, data:b64, total:totalChunks });
+    updateProgress(id, i+1, totalChunks);
+    await new Promise(r => setTimeout(r, 4));
+  }
+}
+
+function recvChunk(msg) {
+  const pf = pendingFiles[msg.id];
+  if (!pf) return;
+  pf.chunks[msg.index] = msg.data;
+  pf.received++;
+  updateProgress(msg.id, pf.received, pf.total);
+  if (pf.received === pf.total) {
+    // Reassemble using safe decode
+    const allChunks = [];
+    let totalLen = 0;
+    for (let i = 0; i < pf.total; i++) {
+      const chunk = b64ToU8(pf.chunks[i]);
+      allChunks.push(chunk);
+      totalLen += chunk.length;
+    }
+    const merged = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const chunk of allChunks) { merged.set(chunk, offset); offset += chunk.length; }
+    const mime = pf.type || 'application/octet-stream';
+    const blob = new Blob([merged], { type: mime });
+    const url = URL.createObjectURL(blob);
+    finishFileBubble(msg.id, url, pf.name, mime);
+    updateProgress(msg.id, pf.total, pf.total);
+    delete pendingFiles[msg.id];
+  }
+}
+
+function updateProgress(id, n, total) {
+  const bar = document.querySelector(`[data-progress="${id}"]`);
+  if (!bar) return;
+  const pct = (n/total)*100;
+  bar.style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => { if(bar.parentElement) bar.parentElement.style.display='none'; }, 600);
+}
+
+// ─── DOM ───────────────────────────────────────────────
+function appendBubble(side, text, id, time) {
+  const msgs = document.getElementById('messages');
+  const typing = document.getElementById('typing-indicator');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + side;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  const ts = document.createElement('span');
+  ts.className = 'msg-time'; ts.textContent = time;
+  meta.appendChild(ts);
+  if (side === 'mine') {
+    const r = document.createElement('span');
+    r.className = 'msg-receipt'; r.textContent = '✓';
+    meta.appendChild(r);
+    myMsgMap[id] = r;
+  }
+  wrap.appendChild(bubble); wrap.appendChild(meta);
+  msgs.insertBefore(wrap, typing);
+  // Observe theirs bubbles for real visibility
+  if (side === 'theirs') {
+    wrap.dataset.msgId = id;
+    msgObserver.observe(wrap);
+  }
+  scrollBottom();
+}
+
+function appendFileBubble(side, meta, readyUrl) {
+  const msgs = document.getElementById('messages');
+  const typing = document.getElementById('typing-indicator');
+  const mime = meta.mime || meta.type || '';
+  const isImage = mime.startsWith('image/');
+  const wrap = document.createElement('div'); wrap.className = 'msg ' + side;
+
+  // Image preview bubble
+  if (isImage && readyUrl) {
+    const bubble = document.createElement('div'); bubble.className = 'bubble img-bubble';
+    const img = document.createElement('img');
+    img.src = readyUrl; img.alt = meta.name;
+    img.style.cssText = 'max-width:240px;max-height:200px;border-radius:10px;display:block;cursor:pointer;';
+    img.onclick = () => openImageViewer(readyUrl, meta.name);
+    bubble.appendChild(img);
+    // small download link below
+    const dl = document.createElement('a');
+    dl.href = readyUrl; dl.download = meta.name;
+    dl.style.cssText = 'display:block;font-size:11px;color:var(--accent);margin-top:4px;text-decoration:none;';
+    dl.textContent = '⬇ ' + meta.name;
+    bubble.appendChild(dl);
+    wrap.appendChild(bubble);
+    msgs.insertBefore(wrap, typing);
+    scrollBottom();
+    return;
+  }
+
+  const bubble = document.createElement('div'); bubble.className = 'bubble file-bubble';
+  const icon = document.createElement('div'); icon.className = 'file-icon'; icon.textContent = fileIcon(mime);
+  const info = document.createElement('div'); info.className = 'file-info';
+  const nm = document.createElement('div'); nm.className = 'file-name'; nm.textContent = meta.name;
+  const sz = document.createElement('div'); sz.className = 'file-size'; sz.textContent = fmtSize(meta.size);
+  const pb = document.createElement('div'); pb.className = 'progress-bar';
+  const pf2 = document.createElement('div'); pf2.className = 'progress-fill'; pf2.setAttribute('data-progress', meta.id); pf2.style.width = readyUrl ? '100%' : '0%';
+  pb.appendChild(pf2);
+  if (readyUrl) pb.style.display = 'none';
+  info.appendChild(nm); info.appendChild(sz); info.appendChild(pb);
+  const dl = document.createElement('button'); dl.className = 'file-dl';
+  dl.setAttribute('data-file-id', meta.id);
+  if (readyUrl) {
+    dl.textContent = '⬇';
+    dl.onclick = () => { const a=document.createElement('a'); a.href=readyUrl; a.download=meta.name; a.click(); };
+  } else {
+    dl.textContent = '⏳';
+  }
+  bubble.appendChild(icon); bubble.appendChild(info); bubble.appendChild(dl);
+  wrap.appendChild(bubble);
+  msgs.insertBefore(wrap, typing);
+  scrollBottom();
+}
+
+// Called when receiver finishes reassembly
+function finishFileBubble(id, url, name, mime) {
+  const isImage = (mime||'').startsWith('image/');
+  const btn = document.querySelector('[data-file-id="'+id+'"]');
+  if (isImage && btn) {
+    // Replace the whole file bubble with an image preview
+    const wrap = btn.closest('.msg');
+    if (wrap) {
+      const newWrap = document.createElement('div');
+      newWrap.className = wrap.className;
+      const bubble = document.createElement('div'); bubble.className = 'bubble img-bubble';
+      const img = document.createElement('img');
+      img.src = url; img.alt = name;
+      img.style.cssText = 'max-width:240px;max-height:200px;border-radius:10px;display:block;cursor:pointer;';
+      img.onclick = () => openImageViewer(url, name);
+      bubble.appendChild(img);
+      const dl = document.createElement('a');
+      dl.href = url; dl.download = name;
+      dl.style.cssText = 'display:block;font-size:11px;color:var(--accent);margin-top:4px;text-decoration:none;';
+      dl.textContent = '⬇ ' + name;
+      bubble.appendChild(dl);
+      newWrap.appendChild(bubble);
+      wrap.replaceWith(newWrap);
+      return;
+    }
+  }
+  if (btn) {
+    btn.textContent = '⬇';
+    btn.onclick = () => { const a=document.createElement('a'); a.href=url; a.download=name; a.click(); };
+  }
+}
+
+// Full-screen image viewer
+function openImageViewer(url, name) {
+  let ov = document.getElementById('img-viewer');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'img-viewer';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-out;';
+    ov.onclick = () => ov.remove();
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = url; img.alt = name;
+  img.style.cssText = 'max-width:92vw;max-height:82vh;border-radius:8px;box-shadow:0 8px 48px rgba(0,0,0,.8);';
+  const cap = document.createElement('div');
+  cap.style.cssText = 'color:#aaa;font-size:12px;margin-top:12px;font-family:monospace;';
+  cap.textContent = name;
+  const dlBtn = document.createElement('a');
+  dlBtn.href = url; dlBtn.download = name;
+  dlBtn.style.cssText = 'margin-top:10px;color:var(--accent,#63d2ff);font-size:13px;text-decoration:none;';
+  dlBtn.textContent = '⬇ Télécharger';
+  dlBtn.onclick = e => e.stopPropagation();
+  ov.appendChild(img); ov.appendChild(cap); ov.appendChild(dlBtn);
+}
+
+function appendSys(text, cls) {
+  const msgs = document.getElementById('messages');
+  const typing = document.getElementById('typing-indicator');
+  const d = document.createElement('div');
+  d.className = 'sys-msg' + (cls?' '+cls:'');
+  d.textContent = text;
+  msgs.insertBefore(d, typing);
+  scrollBottom();
+}
+
+function scrollBottom() {
+  const m = document.getElementById('messages');
+  requestAnimationFrame(() => m.scrollTop = m.scrollHeight);
+}
+
+// ─── INPUT ─────────────────────────────────────────────
+function onKey(e) {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function onInput() {
+  autoResize(document.getElementById('msg-input'));
+  if (!isTyping) { isTyping=true; sendEncoded({ type:'typing', active:true }); }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(stopTyping, 1500);
+}
+
+function stopTyping() {
+  if (isTyping) { isTyping=false; sendEncoded({ type:'typing', active:false }); }
+  clearTimeout(typingTimer);
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ─── NAV ───────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function leaveWaiting() {
+  if (myPeer) { try { myPeer.destroy(); } catch(e){} myPeer=null; }
+  myConn=null;
+  helloDone=false;
+  document.getElementById('join-btn').disabled = false;
+  showScreen('join-screen');
+}
+
+// ─── UTILS ─────────────────────────────────────────────
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function timeStr() { return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }
+function fmtSize(b) { if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function fileIcon(m) {
+  if (!m) return '📄';
+  if (m.startsWith('image/')) return '🖼';
+  if (m.startsWith('video/')) return '🎬';
+  if (m.startsWith('audio/')) return '🎵';
+  if (m.includes('pdf')) return '📕';
+  if (m.includes('zip')||m.includes('rar')) return '📦';
+  if (m.includes('text')) return '📝';
+  return '📄';
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// ─── CAMOUFLAGE LOGIC ──────────────────────────────────
+const COUPON_HASH = 'b20bee501ff2b86cdce0a11a9f9cf7aa1cfe3f8d422b9bedf1737b09587adf60';
+
+function openPayment() {
+  document.getElementById('payment-modal').classList.add('open');
+  document.getElementById('coupon-input').value = '';
+  document.getElementById('coupon-error').classList.remove('show');
+}
+
+function closePayment() {
+  document.getElementById('payment-modal').classList.remove('open');
+}
+
+function selectCard(el) {
+  document.querySelectorAll('.pay-card-option').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function fakePaySubmit() {
+  // Fake processing animation
+  const btn = document.querySelector('.pay-submit-btn');
+  btn.textContent = 'Traitement en cours…';
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.innerHTML = '<span>Payer 9,99 € avec</span><span class="pp-btn-logo">Pay<span>Pal</span></span>';
+    btn.disabled = false;
+    showPayToast('Erreur de connexion au serveur. Réessayez ultérieurement.');
+  }, 2200);
+}
+
+async function checkCoupon() {
+  const val = document.getElementById('coupon-input').value.trim();
+  if (!val) return;
+  const errEl = document.getElementById('coupon-error');
+  errEl.classList.remove('show');
+
+  // Hash the input with SHA-256
+  const enc = new TextEncoder().encode(val);
+  const hashBuf = await crypto.subtle.digest('SHA-256', enc);
+  const hashHex = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+
+  if (hashHex === COUPON_HASH) {
+    // Correct — reveal the real app
+    document.getElementById('payment-modal').classList.remove('open');
+    document.getElementById('camo-layer').style.transition = 'opacity .4s';
+    document.getElementById('camo-layer').style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById('camo-layer').style.display = 'none';
+      document.getElementById('real-app').style.display = 'block';
+    }, 420);
+  } else {
+    errEl.classList.add('show');
+    document.getElementById('coupon-input').value = '';
+    document.getElementById('coupon-input').focus();
+  }
+}
+
+function showPayToast(msg) {
+  // reuse the chat toast but with payment styling
+  const t = document.getElementById('toast');
+  if (t) { t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3000); }
+}
+
+// Close modal on backdrop click
+document.getElementById('payment-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePayment();
+});
+
+</script>
+</body>
+</html>
